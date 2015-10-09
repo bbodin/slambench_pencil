@@ -24,6 +24,13 @@ struct uchar3 {
 	unsigned char z;
 };
 
+struct uchar4 {
+	unsigned char x;
+	unsigned char y;
+	unsigned char z;
+	unsigned char w;
+};
+
 inline float c_sq(float r)
 {
 	return r * r;
@@ -347,7 +354,7 @@ inline void raycast_core(const uint x, const uint y,
                          const uint integration_size_y,
                          const uint integration_size_z,
                          __global const short2s *integration_data,
-                         const struct float3 integration_dim, const Matrix4 view,
+                         const float3 integration_dim, const Matrix4 view,
                          const float nearPlane, const float farPlane,
                          const float stepVal, const float largestep)
 {
@@ -382,17 +389,17 @@ inline void raycast_core(const uint x, const uint y,
 	}
 }
 
-inline struct uchar3 renderVolume_core(const uint x, const uint y,
+inline struct uchar4 renderVolume_core(const uint x, const uint y,
                                  const uint volume_size_x,
                                  const uint volume_size_y,
                                  const uint volume_size_z,
                                  __global const short2s *volume_data,
-                                 const struct float3 volume_dim, const Matrix4 view,
+                                 const float3 volume_dim, const Matrix4 view,
                                  const float nearPlane, const float farPlane,
                                  const float stepVal, const float largestep,
-                                 const struct float3 light, const struct float3 ambient)
+                                 const float3 light, const float3 ambient)
 {
-	struct uchar3 retVal;
+	struct uchar4 retVal;
 	uchar3 retVec;
 	float4 hit = v_raycast(volume_size_x, volume_size_y, volume_size_z,
 	                        volume_data, (float3)(volume_dim.x, volume_dim.y, volume_dim.z), (uint2)(x, y), view,
@@ -414,15 +421,16 @@ inline struct uchar3 renderVolume_core(const uint x, const uint y,
 	retVal.x = retVec.x;
 	retVal.y = retVec.y;
 	retVal.z = retVec.z;
+	retVal.w = 0;
 	return retVal;
 }
 
-inline struct uchar3 renderTrack_core(const uint x, const uint y,
+inline struct uchar4 renderTrack_core(const uint x, const uint y,
                                 const uint outSize_x, const uint outSize_y,
                                 __global const TrackData *data)
 {
 	int test = data[y*outSize_x + x].result;
-	struct uchar3 retVal;
+	struct uchar4 retVal;
 	uchar3 retVec;
 	if (test == 1) {
 		retVec = (uchar3)(128, 128, 128);
@@ -442,16 +450,17 @@ inline struct uchar3 renderTrack_core(const uint x, const uint y,
 	retVal.x = retVec.x;
 	retVal.y = retVec.y;
 	retVal.z = retVec.z;
+	retVal.w = 0;
 	return retVal;
 }
 
-inline struct uchar3 renderDepth_core(const uint x, const uint y,
+inline struct uchar4 renderDepth_core(const uint x, const uint y,
                                 const uint depthSize_x, const uint depthSize_y,
                                 __global const float *depth,
                                 const float nearPlane, const float farPlane,
                                 const float rangeScale)
 {
-	struct uchar3 retVal;
+	struct uchar4 retVal;
 	uchar3 retVec;
 	float depthxy = depth[y*depthSize_x + x];
 	if (depthxy < nearPlane) {
@@ -467,6 +476,7 @@ inline struct uchar3 renderDepth_core(const uint x, const uint y,
 	retVal.x = retVec.x;
 	retVal.y = retVec.y;
 	retVal.z = retVec.z;
+	retVal.w = 0;
 	return retVal;
 }
 
@@ -572,14 +582,14 @@ inline struct float3 depth2vertex_core(const uint x, const uint y,
 }
 
 inline void integrateKernel_core(const uint vol_size_x, const uint vol_size_y,
-                                 const uint vol_size_z, const struct float3 vol_dim,
+                                 const uint vol_size_z, const float3 vol_dim,
                                  __global short2s *vol_data,
                                  const uint x, const uint y,
                                  const uint depthSize_x, const uint depthSize_y,
                                  __global const float *depth,
                                  const Matrix4 invTrack, const Matrix4 K,
                                  const float mu, const float maxweight,
-                                 const struct float3 delta, const struct float3 cameraDelta)
+                                 const float3 delta, const float3 cameraDelta)
 {
 	float3 vol_pos = (float3) ((x + 0.5f) * vol_dim.x / vol_size_x,
 	                           (y + 0.5f) * vol_dim.y / vol_size_y,

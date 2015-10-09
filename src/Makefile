@@ -10,7 +10,7 @@ PENCIL_INCLUDE=${PENCIL_UTIL_HOME}/include/pencil.h
 OPTIMIZER=${PENCIL_TOOLS_HOME}/pencil-optimizer
 LINKER=${PENCIL_TOOLS_HOME}/linker
 
-PPCG_BASE_OPTIONS=--isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=opencl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types
+PPCG_BASE_OPTIONS=--isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=prl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types 
 
 define PPCG_SIZES
 kernel[0]->tile[16,16]; kernel[0]->grid[3000,4000]; kernel[0]->block[16,16];
@@ -33,7 +33,8 @@ kernel[16]->tile[16,16]; kernel[16]->grid[1000,4000]; kernel[16]->block[16,16]
 endef
 
 pencil_kernels_opt.c: pencil_kernels.c
-	${OPTIMIZER} $< -o $@
+	cp pencil_kernels.c pencil_kernels_opt.c
+#	${OPTIMIZER} $< -o $@
 
 export PPCG_SIZES
 ppcg: pencil_kernels_opt.c
@@ -46,11 +47,18 @@ build:
 	rm -rf ${BENCH_SRC}
 	mkdir -p ${BENCH_SRC}
 	cp kernels.cpp ${BENCH_SRC}
+	cp vector_types.h ${BENCH_SRC}
+	cp cl_kernels_core.c ${BENCH_SRC}
 	cp pencil_kernels.c ${BENCH_SRC}
 	cp pencil_kernels_opt_host.c ${BENCH_SRC}
 	cp cl_kernel_vector.cl ${SLAMBENCH_DIR}
 	cp pencil_kernels_opt_kernel.cl ${SLAMBENCH_DIR}
 	PRL_PATH=${PRL_PATH} PENCIL_UTIL_HOME=${PENCIL_UTIL_HOME} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C ${SLAMBENCH_DIR}
+
+run:
+	${SLAMBENCH_DIR}/build/kfusion/kfusion-qt-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log 2>err
+
+all: ppcg build run
 
 clean:
 	rm -f pencil_kernels_prep.c
