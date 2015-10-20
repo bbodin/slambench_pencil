@@ -77,7 +77,7 @@ void Kfusion::languageSpecificConstructor()
 
 	// internal buffers to initialize
 	size_t reductionoutput_size = sizeof(float) * 8 * 32;
-	reductionoutput = (float*) prl_alloc(reductionoutput_size);
+	reductionoutput = (float*) prl_mem_get_host_mem(prl_mem_alloc(reductionoutput_size, prl_mem_host_nowrite));
 	memset(reductionoutput, 0, reductionoutput_size);
 
 	ScaledDepth = (float**)  malloc(sizeof(float*)  * iterations.size());
@@ -86,21 +86,21 @@ void Kfusion::languageSpecificConstructor()
 
 	for (unsigned int i = 0; i < iterations.size(); ++i) {
 		size_t size = (computationSize.x * computationSize.y) / (int) pow(2, i);
-		ScaledDepth[i] = (float*)  prl_alloc(sizeof(float)  * size);
+		ScaledDepth[i] = (float*)  prl_mem_get_host_mem(prl_mem_alloc(sizeof(float)  * size, prl_mem_host_noaccess));
 		memset(ScaledDepth[i], 0, sizeof(float) * size);
 
-		inputVertex[i] = (float3*) prl_alloc(sizeof(float3) * size);
+		inputVertex[i] = (float3*)  prl_mem_get_host_mem(prl_mem_alloc(sizeof(float3) * size, prl_mem_host_noaccess));
 		memset(inputVertex[i], 0, sizeof(float3) * size);
 
-		inputNormal[i] = (float3*) prl_alloc(sizeof(float3) * size);
+		inputNormal[i] = (float3*) prl_mem_get_host_mem(prl_mem_alloc(sizeof(float3) * size, prl_mem_host_noaccess));
 		memset(inputNormal[i], 0, sizeof(float3) * size);
 	}
 
 	size_t size = computationSize.x * computationSize.y;
-	floatDepth     = (float*)     prl_alloc(sizeof(float)     * size);
-	vertex         = (float3*)    prl_alloc(sizeof(float3)    * size);
-	normal         = (float3*)    prl_alloc(sizeof(float3)    * size);
-	trackingResult = (TrackData*) prl_alloc(sizeof(TrackData) * size);
+	floatDepth     = (float*)     prl_mem_get_host_mem(prl_mem_alloc(sizeof(float)* size, prl_mem_host_noaccess));
+	vertex         = (float3*)    prl_mem_get_host_mem(prl_mem_alloc(sizeof(float3)    * size, prl_mem_host_noaccess));
+	normal         = (float3*)    prl_mem_get_host_mem(prl_mem_alloc(sizeof(float3)    * size, prl_mem_host_noaccess));
+	trackingResult = (TrackData*) prl_mem_get_host_mem(prl_mem_alloc(sizeof(TrackData) * size, prl_mem_host_noaccess));
 
 	memset(floatDepth, 0, sizeof(float) * size);
 	memset(vertex, 0, sizeof(float3) * size);
@@ -118,6 +118,8 @@ void Kfusion::languageSpecificConstructor()
 	// Done generating the gaussian.
 
 	volume.init(volumeResolution, volumeDimensions);
+	size_t vol_size = volume.size.x * volume.size.y * volume.size.z * sizeof(short2);
+	prl_mem vol_obj = prl_mem_manage_host(vol_size, volume.data, prl_mem_host_noaccess);
 	reset();
 }
 
@@ -530,36 +532,36 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 {
 	TICK();
 
-	unsigned int y;
-#pragma omp parallel for \
-	    shared(normal, vertex), private(y)
-	for (y = 0; y < inputSize.y; y++)
-		for (unsigned int x = 0; x < inputSize.x; x++) {
+//	unsigned int y;
+//#pragma omp parallel for \
+//	    shared(normal, vertex), private(y)
+//	for (y = 0; y < inputSize.y; y++)
+//		for (unsigned int x = 0; x < inputSize.x; x++) {
+//
+//			uint2 pos = make_uint2(x, y);
+//
+//			const float4 hit = raycast(integration, pos, view, nearPlane,
+//					farPlane, step, largestep);
+//			if (hit.w > 0.0) {
+//				vertex[pos.x + pos.y * inputSize.x] = make_float3(hit);
+//				float3 surfNorm = integration.grad(make_float3(hit));
+//				if (length(surfNorm) == 0) {
+//					//normal[pos] = normalize(surfNorm); // APN added
+//					normal[pos.x + pos.y * inputSize.x].x = INVALID;
+//				} else {
+//					normal[pos.x + pos.y * inputSize.x] = normalize(surfNorm);
+//				}
+//			} else {
+//				//std::cerr<< "RAYCAST MISS "<<  pos.x << " " << pos.y <<"  " << hit.w <<"\n";
+//				vertex[pos.x + pos.y * inputSize.x] = make_float3(0);
+//				normal[pos.x + pos.y * inputSize.x] = make_float3(INVALID, 0,
+//						0);
+//			}
+//		}
 
-			uint2 pos = make_uint2(x, y);
-
-			const float4 hit = raycast(integration, pos, view, nearPlane,
-					farPlane, step, largestep);
-			if (hit.w > 0.0) {
-				vertex[pos.x + pos.y * inputSize.x] = make_float3(hit);
-				float3 surfNorm = integration.grad(make_float3(hit));
-				if (length(surfNorm) == 0) {
-					//normal[pos] = normalize(surfNorm); // APN added
-					normal[pos.x + pos.y * inputSize.x].x = INVALID;
-				} else {
-					normal[pos.x + pos.y * inputSize.x] = normalize(surfNorm);
-				}
-			} else {
-				//std::cerr<< "RAYCAST MISS "<<  pos.x << " " << pos.y <<"  " << hit.w <<"\n";
-				vertex[pos.x + pos.y * inputSize.x] = make_float3(0);
-				normal[pos.x + pos.y * inputSize.x] = make_float3(INVALID, 0,
-						0);
-			}
-		}
-
-//	raycast_pencil(inputSize.x, inputSize.y, vertex, normal, integration.size.x,
-//	               integration.size.y, integration.size.z, integration.data,
-//	               integration.dim, view, nearPlane, farPlane, step, largestep);
+	raycast_pencil(inputSize.x, inputSize.y, vertex, normal, integration.size.x,
+	               integration.size.y, integration.size.z, integration.data,
+	               integration.dim, view, nearPlane, farPlane, step, largestep);
 
 	TOCK("raycastKernel", inputSize.x * inputSize.y);
 }

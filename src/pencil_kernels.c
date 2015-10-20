@@ -1,6 +1,8 @@
 //#include "pencil.h"
 //#include "vector_types.h"
 //
+#include <math.h>
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 
@@ -82,6 +84,7 @@ static float3 c_rotate(const Matrix4 M, const float3 v)
 			M.data[2].x * v.x + M.data[2].y * v.y + M.data[2].z * v.z);
 }
 
+
 static void bilateralFilter_core_summary(int x, int y, int size_x, int size_y,
 		int r, int gaussianS, float e_d,
 		const float in[restrict const static size_y][size_x],
@@ -139,9 +142,6 @@ static void initVolume_core_summary(const unsigned int x, const unsigned int y, 
 		short2 v_data[restrict const static v_size_z][v_size_y][v_size_x],
 		const float dxVal, const float dyVal)
 {
-	short2 temp;
-	//temp.x = dxVal;
-	//temp.y = dyVal;
 	__pencil_def(v_data[z][y][x]);
 }
 
@@ -360,6 +360,7 @@ int bilateralFilter_pencil(int size_x, int size_y,
 		__pencil_assume(size_y > 0);
 		__pencil_assume(r > 0);
 		__pencil_assume(r < 16);
+
 		for (unsigned int y = 0; y < size_y; y++) {
 			for (unsigned int x = 0; x < size_x; x++) {
 				out[y][x] = bilateralFilter_core(x, y, size_x, size_y, r,
