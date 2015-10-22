@@ -11,6 +11,7 @@ struct float3 {
 	float x;
 	float y;
 	float z;
+	float dummy; //for alignment as defined in Opencl standard
 };
 
 struct float4 {

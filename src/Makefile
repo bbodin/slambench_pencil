@@ -10,8 +10,7 @@ PENCIL_INCLUDE=${PENCIL_UTIL_HOME}/include/pencil.h
 OPTIMIZER=${PENCIL_TOOLS_HOME}/pencil-optimizer
 LINKER=${PENCIL_TOOLS_HOME}/linker
 
-#--isl-schedule-fuse=max
-PPCG_BASE_OPTIONS= --isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=prl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types 
+PPCG_BASE_OPTIONS= --isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=prl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types --struct-pass-by-value
 
 define PPCG_SIZES
 kernel[0]->tile[16,16]; kernel[0]->grid[3000,4000]; kernel[0]->block[16,16];
@@ -57,7 +56,10 @@ build:
 	PRL_PATH=${PRL_PATH} PENCIL_UTIL_HOME=${PENCIL_UTIL_HOME} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C ${SLAMBENCH_DIR}
 
 run:
-	PRL_PROFILING=1 PRL_GPU_PROFILING_DETAILED=1 ${SLAMBENCH_DIR}/build/kfusion/kfusion-benchmark-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PRL_PATH}/src/.libs PRL_PROFILING=1 PRL_GPU_PROFILING_DETAILED=1 ${SLAMBENCH_DIR}/build/kfusion/kfusion-benchmark-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
+
+gui:
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PRL_PATH}/src/.libs ${SLAMBENCH_DIR}/build/kfusion/kfusion-qt-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
 
 all: ppcg build run
 
