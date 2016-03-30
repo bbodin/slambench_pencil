@@ -43,10 +43,6 @@ diff -Naur SLAMBench_R0rc1/kfusion/src/benchmark.cpp SLAMBench_pencil/kfusion/sr
  
  	uint frame = 0;
  
-+#ifdef __PENCIL__
-+prl_init(PRL_TARGET_DEVICE_DYNAMIC);
-+#endif
-+
  	Kfusion kfusion(computationSize, config.volume_resolution,
  			config.volume_size, init_pose, config.pyramid);
  
@@ -54,9 +50,7 @@ diff -Naur SLAMBench_R0rc1/kfusion/src/benchmark.cpp SLAMBench_pencil/kfusion/sr
  
  		timings[0] = tock();
  	}
-+#ifdef __PENCIL__
-+prl_shutdown();
-+#endif
+
  	// ==========     DUMP VOLUME      =========
  
  	if (config.dump_volume_file != "") {
