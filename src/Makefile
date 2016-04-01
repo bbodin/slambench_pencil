@@ -10,7 +10,7 @@ PENCIL_INCLUDE=${PENCIL_UTIL_HOME}/include/pencil.h
 OPTIMIZER=${PENCIL_TOOLS_HOME}/pencil-optimizer
 LINKER=${PENCIL_TOOLS_HOME}/linker
 
-PPCG_BASE_OPTIONS= --isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=prl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types --struct-pass-by-value
+PPCG_BASE_OPTIONS= --isl-schedule-fuse=min --no-private-memory --no-shared-memory --target=prl --opencl-include-file=cl_kernel_vector.cl --opencl-compiler-options='-I.' --no-opencl-print-kernel-types --struct-pass-by-value --save-schedule=schedule
 
 define PPCG_SIZES
 kernel[0]->tile[16,16]; kernel[0]->grid[3000,4000]; kernel[0]->block[16,16];
@@ -47,8 +47,6 @@ build:
 	rm -rf ${BENCH_SRC}
 	mkdir -p ${BENCH_SRC}
 	cp kernels.cpp ${BENCH_SRC}
-	cp vector_types.h ${BENCH_SRC}
-	cp cl_kernels_core.c ${BENCH_SRC}
 	cp pencil_kernels.c ${BENCH_SRC}
 	cp pencil_kernels_opt_host.c ${BENCH_SRC}
 	cp cl_kernel_vector.cl ${SLAMBENCH_DIR}
@@ -56,10 +54,10 @@ build:
 	PRL_PATH=${PRL_PATH} PENCIL_UTIL_HOME=${PENCIL_UTIL_HOME} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C ${SLAMBENCH_DIR}
 
 run:
-	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PRL_PATH}/src/.libs PRL_PROFILING=1 PRL_GPU_PROFILING_DETAILED=1 ${SLAMBENCH_DIR}/build/kfusion/kfusion-benchmark-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
+	LD_LIBRARY_PATH=${PRL_PATH}/src/.libs:${OPENCL_SDK}/lib64 ${SLAMBENCH_DIR}/build/kfusion/kfusion-benchmark-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
 
 gui:
-	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PRL_PATH}/src/.libs ${SLAMBENCH_DIR}/build/kfusion/kfusion-qt-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
+	LD_LIBRARY_PATH=${PRL_PATH}/src/.libs:${OPENCL_SDK}/lib64 ${SLAMBENCH_DIR}/build/kfusion/kfusion-qt-pencilCL -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${SLAMBENCH_DIR}/living_room_traj2_loop.raw -o benchmark.2.PencilCL.log
 
 all: ppcg build run
 
