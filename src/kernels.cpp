@@ -177,42 +177,6 @@ void bilateralFilterKernel(float *out, const float *in, uint2 size,
 {
 	TICK();
 
-//	uint y;
-//	float e_d_squared_2 = e_d * e_d * 2;
-//#pragma omp parallel for \
-//    shared(out),private(y)
-//	for (y = 0; y < size.y; y++) {
-//		for (uint x = 0; x < size.x; x++) {
-//			uint pos = x + y * size.x;
-//			if (in[pos] == 0) {
-//				out[pos] = 0;
-//				continue;
-//			}
-//
-//			float sum = 0.0f;
-//			float t = 0.0f;
-//
-//			const float center = in[pos];
-//
-//			for (int i = -r; i <= r; ++i) {
-//				for (int j = -r; j <= r; ++j) {
-//					uint2 curPos = make_uint2(clamp(x + i, 0u, size.x - 1),
-//							clamp(y + j, 0u, size.y - 1));
-//					const float curPix = in[curPos.x + curPos.y * size.x];
-//					if (curPix > 0) {
-//						const float mod = sq(curPix - center);
-//						const float factor = gaussian[i + r]
-//								* gaussian[j + r]
-//								* expf(-mod / e_d_squared_2);
-//						t += factor * curPix;
-//						sum += factor;
-//					}
-//				}
-//			}
-//			out[pos] = t / sum;
-//		}
-//	}
-
 	bilateralFilter_pencil(size.x, size.y, out, in, size,
 	                       (radius * 2 + 1), gaussian, e_d, r);
 	TOCK("bilateralFilterKernel", size.x * size.y);
@@ -222,21 +186,6 @@ void depth2vertexKernel(float3 *vertex, const float *depth,
                         uint2 imageSize, const Matrix4 invK)
 {
 	TICK();
-
-//	unsigned int x, y;
-//#pragma omp parallel for \
-//         shared(vertex), private(x, y)
-//	for (y = 0; y < imageSize.y; y++) {
-//		for (x = 0; x < imageSize.x; x++) {
-//
-//			if (depth[x + y * imageSize.x] > 0) {
-//				vertex[x + y * imageSize.x] = depth[x + y * imageSize.x]
-//						* (rotate(invK, make_float3(x, y, 1.f)));
-//			} else {
-//				vertex[x + y * imageSize.x] = make_float3(0);
-//			}
-//		}
-//	}
 	depth2vertex_pencil(imageSize.x, imageSize.y, vertex, depth, invK);
 	TOCK("depth2vertexKernel", imageSize.x * imageSize.y);
 }
@@ -244,34 +193,6 @@ void depth2vertexKernel(float3 *vertex, const float *depth,
 void vertex2normalKernel(float3 *out, const float3 *in, uint2 imageSize)
 {
 	TICK();
-
-//	unsigned int x, y;
-//#pragma omp parallel for \
-//        shared(out), private(x,y)
-//	for (y = 0; y < imageSize.y; y++) {
-//		for (x = 0; x < imageSize.x; x++) {
-//			const uint2 pleft = make_uint2(max(int(x) - 1, 0), y);
-//			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1),
-//					y);
-//			const uint2 pup = make_uint2(x, max(int(y) - 1, 0));
-//			const uint2 pdown = make_uint2(x,
-//					min(y + 1, ((int) imageSize.y) - 1));
-//
-//			const float3 left = in[pleft.x + imageSize.x * pleft.y];
-//			const float3 right = in[pright.x + imageSize.x * pright.y];
-//			const float3 up = in[pup.x + imageSize.x * pup.y];
-//			const float3 down = in[pdown.x + imageSize.x * pdown.y];
-//
-//			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
-//				out[x + y * imageSize.x].x = INVALID;
-//				continue;
-//			}
-//			const float3 dxv = right - left;
-//			const float3 dyv = down - up;
-//			out[x + y * imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
-//		}
-//	}
-
 	vertex2normal_pencil(imageSize.x, imageSize.y, out, in);
 	TOCK("vertex2normalKernel", imageSize.x * imageSize.y);
 }
@@ -285,61 +206,7 @@ void trackKernel(TrackData* output, const float3* inVertex,
 	TICK();
 
 	uint2 pixel = make_uint2(0, 0);
-//	unsigned int pixely, pixelx;
-//#pragma omp parallel for \
-//	    shared(output), private(pixel,pixelx,pixely)
-//	for (pixely = 0; pixely < inSize.y; pixely++) {
-//		for (pixelx = 0; pixelx < inSize.x; pixelx++) {
-//			pixel.x = pixelx;
-//			pixel.y = pixely;
-//
-//			TrackData & row = output[pixel.x + pixel.y * refSize.x];
-//
-//			if (inNormal[pixel.x + pixel.y * inSize.x].x == INVALID) {
-//				row.result = -1;
-//				continue;
-//			}
-//
-//			const float3 projectedVertex = Ttrack
-//					* inVertex[pixel.x + pixel.y * inSize.x];
-//			const float3 projectedPos = view * projectedVertex;
-//			const float2 projPixel = make_float2(
-//					projectedPos.x / projectedPos.z + 0.5f,
-//					projectedPos.y / projectedPos.z + 0.5f);
-//			if (projPixel.x < 0 || projPixel.x > refSize.x - 1
-//					|| projPixel.y < 0 || projPixel.y > refSize.y - 1) {
-//				row.result = -2;
-//				continue;
-//			}
-//
-//			const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
-//			const float3 referenceNormal = refNormal[refPixel.x
-//					+ refPixel.y * refSize.x];
-//
-//			if (referenceNormal.x == INVALID) {
-//				row.result = -3;
-//				continue;
-//			}
-//
-//			const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x]
-//					- projectedVertex;
-//			const float3 projectedNormal = rotate(Ttrack,
-//					inNormal[pixel.x + pixel.y * inSize.x]);
-//
-//			if (length(diff) > dist_threshold) {
-//				row.result = -4;
-//				continue;
-//			}
-//			if (dot(projectedNormal, referenceNormal) < normal_threshold) {
-//				row.result = -5;
-//				continue;
-//			}
-//			row.result = 1;
-//			row.error = dot(referenceNormal, diff);
-//			((float3 *) row.J)[0] = referenceNormal;
-//			((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
-//		}
-//	}
+
 	track_pencil(refSize.x, refSize.y, inSize.x, inSize.y, output,
 	             inVertex, inNormal, refVertex, refNormal, Ttrack,
 	             view, dist_threshold, normal_threshold);
@@ -365,14 +232,6 @@ void mm2metersKernel(float * out, uint2 outSize,
 	}
 
 	int ratio = inSize.x / outSize.x;
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < outSize.y; y++)
-//		for (unsigned int x = 0; x < outSize.x; x++) {
-//			out[x + outSize.x * y] = in[x * ratio + inSize.x * y * ratio]
-//					/ 1000.0f;
-//		}
 
 	mm2meters_pencil(outSize.x, outSize.y, out, inSize.x, inSize.y, in, ratio);
 	TOCK("mm2metersKernel", outSize.x * outSize.y);
@@ -383,37 +242,6 @@ void halfSampleRobustImageKernel(float* out, const float* in, uint2 inSize,
 {
 	TICK();
 
-//	uint2 outSize = make_uint2(inSize.x / 2, inSize.y / 2);
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < outSize.y; y++) {
-//		for (unsigned int x = 0; x < outSize.x; x++) {
-//			uint2 pixel = make_uint2(x, y);
-//			const uint2 centerPixel = 2 * pixel;
-//
-//			float sum = 0.0f;
-//			float t = 0.0f;
-//			const float center = in[centerPixel.x
-//					+ centerPixel.y * inSize.x];
-//			for (int i = -r + 1; i <= r; ++i) {
-//				for (int j = -r + 1; j <= r; ++j) {
-//					uint2 cur = make_uint2(
-//							clamp(
-//									make_int2(centerPixel.x + j,
-//											centerPixel.y + i), make_int2(0),
-//									make_int2(2 * outSize.x - 1,
-//											2 * outSize.y - 1)));
-//					float current = in[cur.x + cur.y * inSize.x];
-//					if (fabsf(current - center) < e_d) {
-//						sum += 1.0f;
-//						t += current;
-//					}
-//				}
-//			}
-//			out[pixel.x + pixel.y * outSize.x] = t / sum;
-//		}
-//	}
         //TODO: check the outsize param
 	halfSampleRobustImage_pencil(inSize.x, inSize.y, 2*inSize.x, 2*inSize.y,
 	                             out, in, e_d, r);
@@ -426,46 +254,6 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 {
 	TICK();
 
-//	const float3 delta = rotate(invTrack,
-//			make_float3(0, 0, vol.dim.z / vol.size.z));
-//	const float3 cameraDelta = rotate(K, delta);
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(vol), private(y)
-//	for (y = 0; y < vol.size.y; y++)
-//		for (unsigned int x = 0; x < vol.size.x; x++) {
-//
-//			uint3 pix = make_uint3(x, y, 0); //pix.x = x;pix.y = y;
-//			float3 pos = invTrack * vol.pos(pix);
-//			float3 cameraX = K * pos;
-//
-//			for (pix.z = 0; pix.z < vol.size.z;
-//					++pix.z, pos += delta, cameraX += cameraDelta) {
-//				if (pos.z < 0.0001f) // some near plane constraint
-//					continue;
-//				const float2 pixel = make_float2(cameraX.x / cameraX.z + 0.5f,
-//						cameraX.y / cameraX.z + 0.5f);
-//				if (pixel.x < 0 || pixel.x > depthSize.x - 1 || pixel.y < 0
-//						|| pixel.y > depthSize.y - 1)
-//					continue;
-//				const uint2 px = make_uint2(pixel.x, pixel.y);
-//				if (depth[px.x + px.y * depthSize.x] == 0)
-//					continue;
-//				const float diff =
-//						(depth[px.x + px.y * depthSize.x] - cameraX.z)
-//								* std::sqrt(
-//										1 + sq(pos.x / pos.z)
-//												+ sq(pos.y / pos.z));
-//				if (diff > -mu) {
-//					const float sdf = fminf(1.f, diff / mu);
-//					float2 data = vol[pix];
-//					data.x = clamp((data.y * data.x + sdf) / (data.y + 1), -1.f,
-//							1.f);
-//					data.y = fminf(data.y + 1, maxweight);
-//					vol.set(pix, data);
-//				}
-//			}
-//		}
 	integrateKernel_pencil(vol.size.x, vol.size.y, vol.size.z, vol.dim,
 	                       vol.data, depthSize.x, depthSize.y, depth,
 	                       invTrack, K, mu, maxweight);
@@ -473,58 +261,6 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 }
 
 
-float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
-		const float nearPlane, const float farPlane, const float step,
-		const float largestep) {
-
-	const float3 origin = get_translation(view);
-	const float3 direction = rotate(view, make_float3(pos.x, pos.y, 1.f));
-
-	// intersect ray with a box
-	// http://www.siggraph.org/education/materials/HyperGraph/raytrace/rtinter3.htm
-	// compute intersection of ray with all six bbox planes
-	const float3 invR = make_float3(1.0f) / direction;
-	const float3 tbot = -1 * invR * origin;
-	const float3 ttop = invR * (volume.dim - origin);
-
-	// re-order intersections to find smallest and largest on each axis
-	const float3 tmin = fminf(ttop, tbot);
-	const float3 tmax = fmaxf(ttop, tbot);
-
-	// find the largest tmin and the smallest tmax
-	const float largest_tmin = fmaxf(fmaxf(tmin.x, tmin.y),
-			fmaxf(tmin.x, tmin.z));
-	const float smallest_tmax = fminf(fminf(tmax.x, tmax.y),
-			fminf(tmax.x, tmax.z));
-
-	// check against near and far plane
-	const float tnear = fmaxf(largest_tmin, nearPlane);
-	const float tfar = fminf(smallest_tmax, farPlane);
-
-	if (tnear < tfar) {
-		// first walk with largesteps until we found a hit
-		float t = tnear;
-		float stepsize = largestep;
-		float f_t = volume.interp(origin + direction * t);
-		float f_tt = 0;
-		if (f_t > 0) { // ups, if we were already in it, then don't render anything here
-			for (; t < tfar; t += stepsize) {
-				f_tt = volume.interp(origin + direction * t);
-				if (f_tt < 0)                  // got it, jump out of inner loop
-					break;
-				if (f_tt < 0.8f)               // coming closer, reduce stepsize
-					stepsize = step;
-				f_t = f_tt;
-			}
-			if (f_tt < 0) {           // got it, calculate accurate intersection
-				t = t + stepsize * f_tt / (f_t - f_tt);
-				return make_float4(origin + direction * t, t);
-			}
-		}
-	}
-	return make_float4(0);
-
-}
 void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
                    const Volume integration, const Matrix4 view,
                    const float nearPlane, const float farPlane,
@@ -532,32 +268,6 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 {
 	TICK();
 
-//	unsigned int y;
-//#pragma omp parallel for \
-//	    shared(normal, vertex), private(y)
-//	for (y = 0; y < inputSize.y; y++)
-//		for (unsigned int x = 0; x < inputSize.x; x++) {
-//
-//			uint2 pos = make_uint2(x, y);
-//
-//			const float4 hit = raycast(integration, pos, view, nearPlane,
-//					farPlane, step, largestep);
-//			if (hit.w > 0.0) {
-//				vertex[pos.x + pos.y * inputSize.x] = make_float3(hit);
-//				float3 surfNorm = integration.grad(make_float3(hit));
-//				if (length(surfNorm) == 0) {
-//					//normal[pos] = normalize(surfNorm); // APN added
-//					normal[pos.x + pos.y * inputSize.x].x = INVALID;
-//				} else {
-//					normal[pos.x + pos.y * inputSize.x] = normalize(surfNorm);
-//				}
-//			} else {
-//				//std::cerr<< "RAYCAST MISS "<<  pos.x << " " << pos.y <<"  " << hit.w <<"\n";
-//				vertex[pos.x + pos.y * inputSize.x] = make_float3(0);
-//				normal[pos.x + pos.y * inputSize.x] = make_float3(INVALID, 0,
-//						0);
-//			}
-//		}
 
 	raycast_pencil(inputSize.x, inputSize.y, vertex, normal, integration.size.x,
 	               integration.size.y, integration.size.z, integration.data,
@@ -601,22 +311,6 @@ void renderNormalKernel(uchar3* out, const float3* normal, uint2 normalSize)
 {
 	TICK();
 
-
-//        unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < normalSize.y; y++)
-//		for (unsigned int x = 0; x < normalSize.x; x++) {
-//			uint pos = (x + y * normalSize.x);
-//			float3 n = normal[pos];
-//			if (n.x == -2) {
-//				out[pos] = make_uchar3(0, 0, 0);
-//			} else {
-//				n = normalize(n);
-//				out[pos] = make_uchar3(n.x * 128 + 128, n.y * 128 + 128,
-//						n.z * 128 + 128);
-//			}
-//		}
 	renderNormal_pencil(normalSize.x, normalSize.y, out, normal);
 	TOCK("renderNormalKernel", normalSize.x * normalSize.y);
 }
@@ -628,28 +322,7 @@ void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize,
 
 
 	float rangeScale = 1 / (farPlane - nearPlane);
-//
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < depthSize.y; y++) {
-//		int rowOffeset = y * depthSize.x;
-//		for (unsigned int x = 0; x < depthSize.x; x++) {
-//
-//			unsigned int pos = rowOffeset + x;
-//
-//			if (depth[pos] < nearPlane)
-//				out[pos] = make_uchar4(255, 255, 255, 0); // The forth value is a padding in order to align memory
-//			else {
-//				if (depth[pos] > farPlane)
-//					out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding in order to align memory
-//				else {
-//					const float d = (depth[pos] - nearPlane) * rangeScale;
-//					out[pos] = gs2rgb(d);
-//				}
-//			}
-//		}
-//	}
+
 	renderDepth_pencil(depthSize.x, depthSize.y, out, depth, nearPlane, farPlane);
 	TOCK("renderDepthKernel", depthSize.x * depthSize.y);
 }
@@ -657,38 +330,6 @@ void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize,
 void renderTrackKernel(uchar4* out, const TrackData* data, uint2 outSize)
 {
 	TICK();
-
-
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < outSize.y; y++)
-//		for (unsigned int x = 0; x < outSize.x; x++) {
-//			uint pos = x + y * outSize.x;
-//			switch (data[pos].result) {
-//			case 1:
-//				out[pos] = make_uchar4(128, 128, 128, 0);  // ok	 GREY
-//				break;
-//			case -1:
-//				out[pos] = make_uchar4(0, 0, 0, 0);      // no input BLACK
-//				break;
-//			case -2:
-//				out[pos] = make_uchar4(255, 0, 0, 0);        // not in image RED
-//				break;
-//			case -3:
-//				out[pos] = make_uchar4(0, 255, 0, 0);    // no correspondence GREEN
-//				break;
-//			case -4:
-//				out[pos] = make_uchar4(0, 0, 255, 0);        // to far away BLUE
-//				break;
-//			case -5:
-//				out[pos] = make_uchar4(255, 255, 0, 0);     // wrong normal YELLOW
-//				break;
-//			default:
-//				out[pos] = make_uchar4(255, 128, 128, 0);
-//				break;
-//			}
-//		}
 
 	renderTrack_pencil(outSize.x, outSize.y, out, data);
 	TOCK("renderTrackKernel", outSize.x * outSize.y);
@@ -701,33 +342,7 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize,
                         const float3 light, const float3 ambient)
 {
 	TICK();
-//	unsigned int y;
-//#pragma omp parallel for \
-//        shared(out), private(y)
-//	for (y = 0; y < depthSize.y; y++) {
-//		for (unsigned int x = 0; x < depthSize.x; x++) {
-//			const uint pos = x + y * depthSize.x;
-//
-//			float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane,
-//					farPlane, step, largestep);
-//			if (hit.w > 0) {
-//				const float3 test = make_float3(hit);
-//				const float3 surfNorm = volume.grad(test);
-//				if (length(surfNorm) > 0) {
-//					const float3 diff = normalize(light - test);
-//					const float dir = fmaxf(dot(normalize(surfNorm), diff),
-//							0.f);
-//					const float3 col = clamp(make_float3(dir) + ambient, 0.f,
-//							1.f) * 255;
-//					out[pos] = make_uchar4(col.x, col.y, col.z, 0); // The forth value is a padding to align memory
-//				} else {
-//					out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding to align memory
-//				}
-//			} else {
-//				out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding to align memory
-//			}
-//		}
-//	}
+
 	renderVolume_pencil(depthSize.x, depthSize.y, out, volume.size.x,
 	                    volume.size.y, volume.size.z, volume.data,
 	                    volume.dim, view, nearPlane, farPlane, step,
@@ -736,110 +351,11 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize,
 }
 
 #define OLDREDUCE 1
+
 void reduceKernel(float * out, TrackData* J,
                   const uint2 Jsize, const uint2 size)
 {
 	TICK();
-//	int blockIndex;
-//#ifdef OLDREDUCE
-//#pragma omp parallel for private (blockIndex)
-//#endif
-//	for (blockIndex = 0; blockIndex < 8; blockIndex++) {
-//
-//#ifdef OLDREDUCE
-//		float S[112][32]; // this is for the final accumulation
-//		// we have 112 threads in a blockdim
-//		// and 8 blocks in a gridDim?
-//		// ie it was launched as <<<8,112>>>
-//		uint sline;// threadIndex.x
-//		float sums[32];
-//
-//		for(int threadIndex = 0; threadIndex < 112; threadIndex++) {
-//			sline = threadIndex;
-//			float * jtj = sums+7;
-//			float * info = sums+28;
-//			for(uint i = 0; i < 32; ++i) sums[i] = 0;
-//
-//			for(uint y = blockIndex; y < size.y; y += 8 /*gridDim.x*/) {
-//				for(uint x = sline; x < size.x; x += 112 /*blockDim.x*/) {
-//					const TrackData & row = J[(x + y * Jsize.x)]; // ...
-//
-//					if(row.result < 1) {
-//						// accesses S[threadIndex][28..31]
-//						info[1] += row.result == -4 ? 1 : 0;
-//						info[2] += row.result == -5 ? 1 : 0;
-//						info[3] += row.result > -4 ? 1 : 0;
-//						continue;
-//					}
-//					// Error part
-//					sums[0] += row.error * row.error;
-//
-//					// JTe part
-//					for(int i = 0; i < 6; ++i)
-//					sums[i+1] += row.error * row.J[i];
-//
-//					// JTJ part, unfortunatly the double loop is not unrolled well...
-//					jtj[0] += row.J[0] * row.J[0];
-//					jtj[1] += row.J[0] * row.J[1];
-//					jtj[2] += row.J[0] * row.J[2];
-//					jtj[3] += row.J[0] * row.J[3];
-//
-//					jtj[4] += row.J[0] * row.J[4];
-//					jtj[5] += row.J[0] * row.J[5];
-//
-//					jtj[6] += row.J[1] * row.J[1];
-//					jtj[7] += row.J[1] * row.J[2];
-//					jtj[8] += row.J[1] * row.J[3];
-//					jtj[9] += row.J[1] * row.J[4];
-//
-//					jtj[10] += row.J[1] * row.J[5];
-//
-//					jtj[11] += row.J[2] * row.J[2];
-//					jtj[12] += row.J[2] * row.J[3];
-//					jtj[13] += row.J[2] * row.J[4];
-//					jtj[14] += row.J[2] * row.J[5];
-//
-//					jtj[15] += row.J[3] * row.J[3];
-//					jtj[16] += row.J[3] * row.J[4];
-//					jtj[17] += row.J[3] * row.J[5];
-//
-//					jtj[18] += row.J[4] * row.J[4];
-//					jtj[19] += row.J[4] * row.J[5];
-//
-//					jtj[20] += row.J[5] * row.J[5];
-//
-//					// extra info here
-//					info[0] += 1;
-//				}
-//			}
-//
-//			for(int i = 0; i < 32; ++i) { // copy over to shared memory
-//				S[sline][i] = sums[i];
-//			}
-//			// WE NO LONGER NEED TO DO THIS AS the threads execute sequentially inside a for loop
-//
-//		} // threads now execute as a for loop.
-//		  //so the __syncthreads() is irrelevant
-//
-//		for(int ssline = 0; ssline < 32; ssline++) { // sum up columns and copy to global memory in the final 32 threads
-//			for(unsigned i = 1; i < 112 /*blockDim.x*/; ++i) {
-//				S[0][ssline] += S[i][ssline];
-//			}
-//			out[ssline+blockIndex*32] = S[0][ssline];
-//		}
-//#else
-//		//new_reduce(blockIndex, out, J, Jsize, size);
-//#endif
-//
-//	}
-//
-//	TooN::Matrix<8, 32, float, TooN::Reference::RowMajor> values(out);
-//	for (int j = 1; j < 8; ++j) {
-//		values[0] += values[j];
-//		//std::cerr << "REDUCE ";for(int ii = 0; ii < 32;ii++)
-//		//std::cerr << values[0][ii] << " ";
-//		//std::cerr << "\n";
-//	}
 
 	reduce_pencil(out, Jsize.x, Jsize.y, J, size.x, size.y);
 	TooN::Matrix<8, 32, float, TooN::Reference::RowMajor> values(out);
@@ -853,6 +369,7 @@ void reduceKernel(float * out, TrackData* J,
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize)
 {
+        
 	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
 	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize,
 	                      gaussian, e_delta, radius);
@@ -943,7 +460,7 @@ void Kfusion::dumpVolume(std::string filename)
 	std::cout << "Dumping the volumetric representation on file: "
 	          << filename << std::endl;
 	fDumpFile.open(filename.c_str(), std::ios::out | std::ios::binary);
-	if (fDumpFile == NULL) {
+	if (fDumpFile.fail()) {
 		std::cout << "Error opening file: " << filename << std::endl;
 		exit(1);
 	}
