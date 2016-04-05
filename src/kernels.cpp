@@ -47,6 +47,11 @@ extern "C" {
 	                   const float nearPlane, const float farPlane, const float step, const float largestep);
 
 	int reduce_pencil(float *sums, const uint Jsize_x, const uint Jsize_y, TrackData *J, const uint size_x, const uint size_y);
+
+  int preprocessing_pencil( const uint , const uint, const ushort * inputDepth,
+			    const uint , const uint ,float * floatDepth, float * ScaledDepth,
+			    int radius, float* gaussian, float e_delta);
+
 }
 
 float * gaussian;
@@ -369,11 +374,10 @@ void reduceKernel(float * out, TrackData* J,
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize)
 {
-        
-	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
-	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize,
-	                      gaussian, e_delta, radius);
-	return true;
+  preprocessing_pencil( inputSize.x , inputSize.y,inputDepth, computationSize.x,  computationSize.y, floatDepth, ScaledDepth[0],  radius,  gaussian,  e_delta);
+
+			     
+  return true;
 }
 
 bool Kfusion::tracking(float4 k, float icp_threshold,
