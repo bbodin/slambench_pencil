@@ -60,9 +60,15 @@ extern "C" {
 		      float * ScaledDepth2,
 		      float3*,float3*,float3*,
 		      float3*,float3*,float3*,
+		      float3*,float3*,
+		      TrackData*,
+		      float*,
+		      Matrix4, Matrix4,
+		      float,float,
 		      Matrix4 k0,
 		      Matrix4 k1,
 		      Matrix4 k2,
+		      int,int,int,
 		      float e_delta) ;
     
 }
@@ -401,20 +407,27 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 	
 	assert(iterations.size() == 3); // Bruno : assume 3 level of pyramid only (extremely reasonnable)
 	
+	oldPose = pose;
+	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
+
 	tracking_pencil(computationSize.x/1, computationSize.y/1,
 			computationSize.x/2, computationSize.y/2, 
 			computationSize.x/4, computationSize.y/4,
 			ScaledDepth[0], ScaledDepth[1], ScaledDepth[2],
 			inputVertex[0], inputVertex[1], inputVertex[2],
 			inputNormal[0], inputNormal[1], inputNormal[2],
+			vertex,normal,
+			trackingResult,
+			reductionoutput,
+			pose, projectReference, dist_threshold, normal_threshold,
 			getInverseCameraMatrix(k / float(1 << 0)),
 			getInverseCameraMatrix(k / float(1 << 1)),
 			getInverseCameraMatrix(k / float(1 << 2)),
+			iterations[0],
+			iterations[1],
+			iterations[2],
 			e_delta);
 	
-
-	oldPose = pose;
-	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
 
 	for (int level = iterations.size() - 1; level >= 0; --level) {
 		uint2 localimagesize = make_uint2(computationSize.x / (int) pow(2, level),
