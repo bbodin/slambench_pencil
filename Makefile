@@ -92,11 +92,11 @@ slambench-chandan :
 	echo "add_version(\$${appname} pencilCL \"-D __PENCIL__  -I\$${util_path}/include\" \"-L\$${prl_path}/lib -lprl_opencl\")" >> $@/kfusion/CMakeLists.txt
 	echo "endif()" >> $@/kfusion/CMakeLists.txt
 
-slambench-chandan/kfusion/src/pencil/pencil_kernels_host.c :  slambench-chandan chandan-install/bin/ppcg
+slambench-chandan/kfusion/src/pencil/pencil_kernels_host.c :  slambench-chandan chandan-install/bin/ppcg src/pencil_kernels.c
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
 	cd slambench-chandan/kfusion/src/pencil/ && ${CHANDAN_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
 
-slambench-chandan/kfusion/src/pencil/kernels.cpp  : slambench-chandan
+slambench-chandan/kfusion/src/pencil/kernels.cpp  : slambench-chandan src/kernels.cpp
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
 	cp src/kernels.cpp slambench-chandan/kfusion/src/pencil/
 
@@ -127,11 +127,11 @@ slambench :
 
 
 
-slambench/kfusion/src/pencil/pencil_kernels_host.c :  slambench pencilcc-install/bin/ppcg
+slambench/kfusion/src/pencil/pencil_kernels_host.c :  slambench pencilcc-install/bin/ppcg src/pencil_kernels.c
 	mkdir -p  slambench/kfusion/src/pencil/ 
 	cd slambench/kfusion/src/pencil/ && ${PENCILCC_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --no-allow-gnu-extensions --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
 
-slambench/kfusion/src/pencil/kernels.cpp  : slambench
+slambench/kfusion/src/pencil/kernels.cpp  : slambench src/kernels.cpp
 	mkdir -p  slambench/kfusion/src/pencil/ 
 	cp src/kernels.cpp slambench/kfusion/src/pencil/
 
