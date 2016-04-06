@@ -315,6 +315,7 @@ static void reduce_core_summary(float sums[restrict const static 32], TrackData 
 void reduce_core(float sums[restrict const static 32], TrackData row)
 __attribute__((pencil_access(reduce_core_summary)));
 
+
 int mm2meters_pencil(unsigned int outSize_x, unsigned int outSize_y,
 		float out[restrict const static outSize_y][outSize_x],
 		unsigned int inSize_x, unsigned int inSize_y,
@@ -340,7 +341,7 @@ int mm2meters_pencil(unsigned int outSize_x, unsigned int outSize_y,
 	}
 }
 #pragma endscop
-	return 0;
+return 0;
 }
 
 int bilateralFilter_pencil(int size_x, int size_y,
@@ -370,63 +371,6 @@ int bilateralFilter_pencil(int size_x, int size_y,
 	}
 	#pragma endscop
 	return 0;
-}
-
-inline void inline_mm2meters_pencil(unsigned int outSize_x, unsigned int outSize_y,
-		float out[restrict const static outSize_y][outSize_x],
-		unsigned int inSize_x, unsigned int inSize_y,
-		const unsigned short in[restrict const static inSize_y][inSize_x],
-		int ratio)
-{
-#pragma scop
-{
-	__pencil_assume(outSize_y < 960);
-	__pencil_assume(outSize_x < 1280);
-	__pencil_assume(outSize_y % 120 == 0);
-	__pencil_assume(outSize_x % 160 == 0);
-	__pencil_assume(outSize_x > 0);
-	__pencil_assume(outSize_y > 0);
-	__pencil_assume(inSize_x > 0);
-	__pencil_assume(inSize_y > 0);
-	for (unsigned int y = 0; y < outSize_y; y++) {
-		for (unsigned int x = 0; x < outSize_x; x++) {
-			int xr = x * ratio;
-			int yr = y * ratio;
-			out[y][x] = in[yr][xr] / 1000.0f;
-		}
-	}
-}
-#pragma endscop
-
-}
-
-inline void inline_bilateralFilter_pencil(int size_x, int size_y,
-		float out[restrict const static size_y][size_x],
-		const float in[restrict const static size_y][size_x],
-		uint2 size, int gaussianS,
-		const float gaussian[restrict const static gaussianS],
-		float e_d, int r)
-{
-	#pragma scop
-	{
-		__pencil_assume(size_y < 960);
-		__pencil_assume(size_x < 1280);
-		__pencil_assume(size_y % 120 == 0);
-		__pencil_assume(size_x % 160 == 0);
-		__pencil_assume(size_x > 0);
-		__pencil_assume(size_y > 0);
-		__pencil_assume(r > 0);
-		__pencil_assume(r < 16);
-
-		for (unsigned int y = 0; y < size_y; y++) {
-			for (unsigned int x = 0; x < size_x; x++) {
-				out[y][x] = bilateralFilter_core(x, y, size_x, size_y, r,
-						gaussianS, e_d, in, gaussian);
-			}
-		}
-	}
-	#pragma endscop
-
 }
 
 int initVolume_pencil(const unsigned int v_size_x, const unsigned int v_size_y, const unsigned int v_size_z,
@@ -754,7 +698,6 @@ int reduce_pencil(float sums[restrict const static 8][32], const unsigned int Js
 		__pencil_assume(size_y > 0);
 		__pencil_assume(size_x > 0);
 
-
 		float intrmdSums[size_x][8][32];
 
 		for (unsigned int blockIndex = 0; blockIndex < 8; blockIndex++) {
@@ -781,34 +724,5 @@ int reduce_pencil(float sums[restrict const static 8][32], const unsigned int Js
 		}
 	}
 #pragma endscop
-	return 0;
-}
-
-
-int preprocessing_pencil(
-			 const uint inputSizex,
-			 const uint inputSizey,
-			 const unsigned short inputDepth[restrict const static inputSizey][inputSizex],
-			 const uint computationSizex,
-			 const uint computationSizey,
-			 float    floatDepth[restrict const static computationSizey][computationSizex],
-			 float    ScaledDepth[restrict const static computationSizey][computationSizex],
-			 int radius,
-			 float* gaussian,
-			 float e_delta)
-{
-
-	int ratio = inputSizex / computationSizex;
-	uint2 computationSize = {computationSizex,computationSizey};
-
-	#pragma scop
-	
-	inline_mm2meters_pencil(computationSizex, computationSizey, floatDepth, inputSizex, inputSizey, inputDepth, ratio);
-
-	
-	inline_bilateralFilter_pencil(computationSizex, computationSizey, ScaledDepth , floatDepth, computationSize, (radius * 2 + 1), gaussian, e_delta, radius);
-
-	#pragma endscop
-	
 	return 0;
 }
