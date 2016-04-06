@@ -60,9 +60,9 @@ extern "C" {
 		      float * ScaledDepth2,
 		      float3*,float3*,float3*,
 		      float3*,float3*,float3*,
-		      float4 k0,
-		      float4 k1,
-		      float4 k2,
+		      Matrix4 k0,
+		      Matrix4 k1,
+		      Matrix4 k2,
 		      float e_delta) ;
     
 }
@@ -407,9 +407,9 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 			ScaledDepth[0], ScaledDepth[1], ScaledDepth[2],
 			inputVertex[0], inputVertex[1], inputVertex[2],
 			inputNormal[0], inputNormal[1], inputNormal[2],
-			k / float(1 << 0),
-			k / float(1 << 1),
-			k / float(1 << 2),
+			getInverseCameraMatrix(k / float(1 << 0)),
+			getInverseCameraMatrix(k / float(1 << 1)),
+			getInverseCameraMatrix(k / float(1 << 2)),
 			e_delta);
 	
 

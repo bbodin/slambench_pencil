@@ -70,7 +70,7 @@ typedef struct uint2 uint2;
 typedef struct Matrix4 Matrix4;
 typedef struct TrackData TrackData;
 
-float3 make_float3(float x, float y, float z) {
+inline float3 make_float3(float x, float y, float z) {
 	float3 ret;
 	ret.x = x;
 	ret.y = y;
@@ -78,7 +78,7 @@ float3 make_float3(float x, float y, float z) {
 	return ret;
 }
 
-float4 make_float4(float x, float y, float z,float w) {
+inline float4 make_float4(float x, float y, float z,float w) {
 	float4 ret;
 	ret.x = x;
 	ret.y = y;
@@ -547,6 +547,53 @@ int vertex2normal_pencil(unsigned int imageSize_x, unsigned int imageSize_y,
 #pragma endscop
 	return 0;
 }
+inline void inline_depth2vertex_pencil(unsigned int imageSize_x, unsigned int imageSize_y,
+		float3 vertex[restrict const static imageSize_y][imageSize_x],
+		const float depth[restrict const static imageSize_y][imageSize_x],
+		const Matrix4 invK)
+{
+#pragma scop
+	{
+		__pencil_assume(imageSize_y < 960);
+		__pencil_assume(imageSize_x < 1280);
+		__pencil_assume(imageSize_y % 60 == 0);
+		__pencil_assume(imageSize_x % 80 == 0);
+		__pencil_assume(imageSize_x > 0);
+		__pencil_assume(imageSize_y > 0);
+		for (unsigned int y = 0; y < imageSize_y; y++) {
+			for (unsigned int x = 0; x < imageSize_x; x++) {
+				vertex[y][x] = depth2vertex_core(x, y, imageSize_x,
+						imageSize_y, depth, invK);
+			}
+		}
+	}
+#pragma endscop
+
+}
+
+inline void inline_vertex2normal_pencil(unsigned int imageSize_x, unsigned int imageSize_y,
+		float3 out[restrict const static imageSize_y][imageSize_x],
+		const float3 in[restrict const static imageSize_y][imageSize_x])
+{
+#pragma scop
+	{
+		__pencil_assume(imageSize_y < 960);
+		__pencil_assume(imageSize_x < 1280);
+		__pencil_assume(imageSize_y % 60 == 0);
+		__pencil_assume(imageSize_x % 80 == 0);
+		__pencil_assume(imageSize_x > 0);
+		__pencil_assume(imageSize_y > 0);
+		for (unsigned int y = 0; y < imageSize_y; y++) {
+			for (unsigned int x = 0; x < imageSize_x; x++) {
+				out[y][x] = vertex2normal_core(x, y, imageSize_x, imageSize_y, in);
+			}
+		}
+	}
+#pragma endscop
+
+}
+
+
 
 int halfSampleRobustImage_pencil(unsigned int outSize_x, unsigned int outSize_y,
 		unsigned int inSize_x, unsigned int inSize_y,
@@ -846,28 +893,28 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
 		    float3 InputNormal0[restrict const static size0y][size0x],
 		    float3 InputNormal1[restrict const static size1y][size1x],
 		    float3 InputNormal2[restrict const static size2y][size2x],
-		    float4 k0,
-		    float4 k1,
-		    float4 k2,
+		    Matrix4 invK0,
+		    Matrix4 invK1,
+		    Matrix4 invK2,
 		    float e_delta) {
 
 
+#pragma scop
   
-  halfSampleRobustImage_pencil(size1x, size1y, size0x, size0y, ScaledDepth1, ScaledDepth0, e_delta * 3, 1);
-  halfSampleRobustImage_pencil(size2x, size2y, size1x, size1y, ScaledDepth2, ScaledDepth1, e_delta * 3, 1);
+  inline_halfSampleRobustImage_pencil(size1x, size1y, size0x, size0y, ScaledDepth1, ScaledDepth0, e_delta * 3, 1);
+  inline_halfSampleRobustImage_pencil(size2x, size2y, size1x, size1y, ScaledDepth2, ScaledDepth1, e_delta * 3, 1);
 
-  Matrix4 invK0 = getInverseCameraMatrix(k0);
-  depth2vertex_pencil(size0x, size0y, InputVertex0, ScaledDepth0, invK0);
-  vertex2normal_pencil(size0x, size0y, InputNormal0, InputVertex0);
+  inline_depth2vertex_pencil(size0x, size0y, InputVertex0, ScaledDepth0, invK0);
+  inline_vertex2normal_pencil(size0x, size0y, InputNormal0, InputVertex0);
 
-  Matrix4 invK1 = getInverseCameraMatrix(k1);
-  depth2vertex_pencil(size1x, size1y, InputVertex1, ScaledDepth1, invK1);
-  vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
+  inline_depth2vertex_pencil(size1x, size1y, InputVertex1, ScaledDepth1, invK1);
+  inline_vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
 
-  Matrix4 invK2 = getInverseCameraMatrix(k2);
-  depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
-  vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
+  inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
+  inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
 
+#pragma endscop
+  
   return 0;
   
 }
