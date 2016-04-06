@@ -78,6 +78,15 @@ float3 make_float3(float x, float y, float z) {
 	return ret;
 }
 
+float4 make_float4(float x, float y, float z,float w) {
+	float4 ret;
+	ret.x = x;
+	ret.y = y;
+	ret.z = z;
+	ret.w = w;
+	return ret;
+}
+
 static float3 c_rotate(const Matrix4 M, const float3 v)
 {
 	return make_float3(M.data[0].x * v.x + M.data[0].y * v.y + M.data[0].z * v.z,
@@ -570,6 +579,38 @@ int halfSampleRobustImage_pencil(unsigned int outSize_x, unsigned int outSize_y,
 #pragma endscop
 return 0;
 }
+inline void inline_halfSampleRobustImage_pencil(unsigned int outSize_x, unsigned int outSize_y,
+		unsigned int inSize_x, unsigned int inSize_y,
+		float out[restrict const static outSize_y][outSize_x],
+		const float in[restrict const static inSize_y][inSize_x],
+		const float e_d, const int r)
+{
+#pragma scop
+	{
+		__pencil_assume(outSize_y < 960);
+		__pencil_assume(outSize_x < 1280);
+		__pencil_assume(outSize_y % 60 == 0);
+		__pencil_assume(outSize_x % 80 == 0);
+		__pencil_assume(outSize_x > 0);
+		__pencil_assume(outSize_y > 0);
+
+		__pencil_assume(inSize_y < 960);
+		__pencil_assume(inSize_x < 1280);
+		__pencil_assume(inSize_y % 60 == 0);
+		__pencil_assume(inSize_x % 80 == 0);
+		__pencil_assume(inSize_x > 0);
+		__pencil_assume(inSize_y > 0);
+		for (unsigned int y = 0; y < outSize_y; y++) {
+			for (unsigned int x = 0; x < outSize_x; x++) {
+				out[y][x] = halfSampleRobustImage_core(x, y, outSize_x, outSize_y,
+						inSize_x, inSize_y, in, e_d, r);
+			}
+		}
+	}
+#pragma endscop
+
+}
+
 
 int renderNormal_pencil(unsigned int normalSize_x, unsigned int normalSize_y,
 		uchar3 out[restrict const static normalSize_y][normalSize_x],
@@ -784,6 +825,52 @@ int reduce_pencil(float sums[restrict const static 8][32], const unsigned int Js
 	return 0;
 }
 
+inline Matrix4 getInverseCameraMatrix(const float4  k) {
+	Matrix4 invK;
+	invK.data[0] = make_float4(1.0f / k.x, 0, -k.z / k.x, 0);
+	invK.data[1] = make_float4(0, 1.0f / k.y, -k.w / k.y, 0);
+	invK.data[2] = make_float4(0, 0, 1, 0);
+	invK.data[3] = make_float4(0, 0, 0, 1);
+	return invK;
+}
+
+int tracking_pencil(unsigned int size0x, unsigned int size0y,
+		    unsigned int size1x, unsigned int size1y,
+		    unsigned int size2x, unsigned int size2y,
+		    float ScaledDepth0[restrict const static size0y][size0x],
+		    float ScaledDepth1[restrict const static size1y][size1x],
+		    float ScaledDepth2[restrict const static size2y][size2x],
+		    float3 InputVertex0[restrict const static size0y][size0x],
+		    float3 InputVertex1[restrict const static size1y][size1x],
+		    float3 InputVertex2[restrict const static size2y][size2x],
+		    float3 InputNormal0[restrict const static size0y][size0x],
+		    float3 InputNormal1[restrict const static size1y][size1x],
+		    float3 InputNormal2[restrict const static size2y][size2x],
+		    float4 k0,
+		    float4 k1,
+		    float4 k2,
+		    float e_delta) {
+
+
+  
+  halfSampleRobustImage_pencil(size1x, size1y, size0x, size0y, ScaledDepth1, ScaledDepth0, e_delta * 3, 1);
+  halfSampleRobustImage_pencil(size2x, size2y, size1x, size1y, ScaledDepth2, ScaledDepth1, e_delta * 3, 1);
+
+  Matrix4 invK0 = getInverseCameraMatrix(k0);
+  depth2vertex_pencil(size0x, size0y, InputVertex0, ScaledDepth0, invK0);
+  vertex2normal_pencil(size0x, size0y, InputNormal0, InputVertex0);
+
+  Matrix4 invK1 = getInverseCameraMatrix(k1);
+  depth2vertex_pencil(size1x, size1y, InputVertex1, ScaledDepth1, invK1);
+  vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
+
+  Matrix4 invK2 = getInverseCameraMatrix(k2);
+  depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
+  vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
+
+  return 0;
+  
+}
 
 int preprocessing_pencil(
 			 const uint inputSizex,

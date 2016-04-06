@@ -52,6 +52,19 @@ extern "C" {
 			    const uint , const uint ,float * floatDepth, float * ScaledDepth,
 			    int radius, float* gaussian, float e_delta);
 
+  int tracking_pencil(unsigned int size0x, unsigned int size0y,
+		      unsigned int size1x, unsigned int size1y,
+		      unsigned int size2x, unsigned int size2y,
+		      float * ScaledDepth0,
+		      float * ScaledDepth1,
+		      float * ScaledDepth2,
+		      float3*,float3*,float3*,
+		      float3*,float3*,float3*,
+		      float4 k0,
+		      float4 k1,
+		      float4 k2,
+		      float e_delta) ;
+    
 }
 
 float * gaussian;
@@ -385,21 +398,20 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 {
 	if (frame % tracking_rate != 0)
 		return false;
-
-	for (unsigned int i = 1; i < iterations.size(); ++i) {
-		halfSampleRobustImageKernel(ScaledDepth[i], ScaledDepth[i - 1],
-		                            make_uint2(computationSize.x / (int) pow(2, i),
-		                                       computationSize.y / (int) pow(2, i)),
-		                            e_delta * 3, 1);
-	}
-
-	uint2 localimagesize = computationSize;
-	for (unsigned int i = 0; i < iterations.size(); ++i) {
-		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
-		depth2vertexKernel(inputVertex[i], ScaledDepth[i], localimagesize, invK);
-		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
-		localimagesize = make_uint2(localimagesize.x / 2, localimagesize.y / 2);
-	}
+	
+	assert(iterations.size() == 3); // Bruno : assume 3 level of pyramid only (extremely reasonnable)
+	
+	tracking_pencil(computationSize.x/1, computationSize.y/1,
+			computationSize.x/2, computationSize.y/2, 
+			computationSize.x/4, computationSize.y/4,
+			ScaledDepth[0], ScaledDepth[1], ScaledDepth[2],
+			inputVertex[0], inputVertex[1], inputVertex[2],
+			inputNormal[0], inputNormal[1], inputNormal[2],
+			k / float(1 << 0),
+			k / float(1 << 1),
+			k / float(1 << 2),
+			e_delta);
+	
 
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
@@ -420,6 +432,9 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 
 		}
 	}
+
+	
+	
 	return checkPoseKernel(pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
 }
