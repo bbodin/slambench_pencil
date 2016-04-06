@@ -1,6 +1,6 @@
 
-#PENCILCC_REPO           := https://github.com/Meinersbur/pencilcc.git
-PENCILCC_REPO           := https://github.com/chandangreddy/pencilcc.git
+PENCILCC_REPO           := https://github.com/Meinersbur/pencilcc.git
+#PENCILCC_REPO           := https://github.com/chandangreddy/pencilcc.git
 PENCILCC_COMMIT         := pencilcc
 
 SLAMBENCH_REPO          := https://github.com/pamela-project/slambench.git
@@ -23,6 +23,9 @@ PPCG_BASE_OPTIONS+= --opencl-include-file=cl_kernel_vector.cl
 PPCG_BASE_OPTIONS+= --opencl-compiler-options='-I${ROOT_DIR}/src'
 PPCG_BASE_OPTIONS+= --no-opencl-print-kernel-types
 PPCG_BASE_OPTIONS+= --opencl-embed-kernel-code
+PPCG_BASE_OPTIONS+= --no-allow-gnu-extensions
+
+
 
 # PPCG_BASE_OPTIONS+= --struct-pass-by-value # Only work with chandangreddy repo
 
@@ -87,7 +90,7 @@ slambench/kfusion/src/pencil/kernels.cpp  : slambench
 	cp src/kernels.cpp slambench/kfusion/src/pencil/
 
 slambench/build/kfusion/kfusion-main-pencilCL : slambench slambench/kfusion/src/pencil/pencil_kernels_host.c slambench/kfusion/src/pencil/kernels.cpp  
-	PRL_PATH=${PRL_PATH} PENCIL_UTIL_HOME=${PENCIL_UTIL_HOME} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C slambench
+	PRL_PATH=${PRL_PATH} PENCIL_UTIL_HOME=${PENCIL_UTIL_HOME} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C slambench SPECIFIC_TARGET=kfusion-main-pencilCL
 
 slambench/living_room_traj2_loop.raw : slambench
 	if [ -f ${DATASET} ] ; then cp ${DATASET} slambench ; else make -C slambench living_room_traj2_loop.raw ; fi
