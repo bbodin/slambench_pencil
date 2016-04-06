@@ -183,6 +183,6 @@ pencilcc-install/bin/ppcg : pencilcc-build/ppcg/.libs/ppcg
 	cd pencilcc-build && make install
 
 clean :
-	rm benchmark.2.PencilCL.log pencilcc *-install *-build slambench -rf
+	rm *.log pencilcc *-install *-build slambench slambench-* -rf
 
 .PHONY : build clean run all
