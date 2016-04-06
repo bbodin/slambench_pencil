@@ -92,7 +92,7 @@ slambench-chandan :
 	echo "add_version(\$${appname} pencilCL \"-D __PENCIL__  -I\$${util_path}/include\" \"-L\$${prl_path}/lib -lprl_opencl\")" >> $@/kfusion/CMakeLists.txt
 	echo "endif()" >> $@/kfusion/CMakeLists.txt
 
-slambench-chandan/kfusion/src/pencil/pencil_kernels_host.c :  slambench-chandan pencilcc-install/bin/ppcg
+slambench-chandan/kfusion/src/pencil/pencil_kernels_host.c :  slambench-chandan chandan-install/bin/ppcg
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
 	cd slambench-chandan/kfusion/src/pencil/ && ${CHANDAN_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
 
@@ -183,6 +183,6 @@ pencilcc-install/bin/ppcg : pencilcc-build/ppcg/.libs/ppcg
 	cd pencilcc-build && make install
 
 clean :
-	rm *.log pencilcc *-install *-build slambench slambench-* -rf
+	rm *.log pencilcc *-install *-build slambench slambench-* chandan -rf
 
 .PHONY : build clean run all
