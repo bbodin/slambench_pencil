@@ -993,12 +993,12 @@ void line_540 (int l , int k, int l1, float anorm, float vOffDiagonal[6], float 
 void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static 32] ) {
   
   float mU[6][6];
-
-
+  
+  
   for (int r = 1; r < 6; ++r)
     for (int c = 0; c < r; ++c)
       mU[r][c] = 0;
-
+  
 
 
   mU[0][0] = output[7];
@@ -1029,24 +1029,6 @@ void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static
 
 
   int nError = 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   //Bidiagonalize();
 
@@ -1137,17 +1119,6 @@ void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static
 
   // Accumulation of right-hand transformations
 
-
-
-
-
-
-
-
-
-
-
-
   //Accumulate_RHS();
 
   // Get rid of fakey loop over ii, do a loop over i directly
@@ -1157,27 +1128,27 @@ void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static
   float gbis = vOffDiagonal[6-1];
 
   // The loop
-  for(int i=6-2; i>=0; --i) // 400
-    {
-      const int l = i + 1;
-      if( gbis!=0) // 360
-	{
-	  for(int j=l; j<6; ++j)
-	    mV[j][i] = (mU[i][j] / mU[i][l]) / gbis; // float division avoids possible underflow
-	  for(int j=l; j<6; ++j)
-	    { // 350
-	      float s = 0;
-	      for(int k=l; k<6; ++k)
-		s += mU[i][k] * mV[k][j];
-	      for(int k=l; k<6; ++k)
-		mV[k][j] += s * mV[k][i];
-	    } // 350
-	} // 360
-      for(int j=l; j<6; ++j)
-	mV[i][j] = mV[j][i] = 0;
-      mV[i][i] =1;
-      gbis = vOffDiagonal[i];
-    } // 400
+  for(int i=6-2; i>=0; --i) {  // 400
+    
+    const int l = i + 1;
+    if( gbis!=0) // 360
+      {
+	for(int j=l; j<6; ++j)
+	  mV[j][i] = (mU[i][j] / mU[i][l]) / gbis; // float division avoids possible underflow
+	for(int j=l; j<6; ++j)
+	  { // 350
+	    float s = 0;
+	    for(int k=l; k<6; ++k)
+	      s += mU[i][k] * mV[k][j];
+	    for(int k=l; k<6; ++k)
+	      mV[k][j] += s * mV[k][i];
+	  } // 350
+      } // 360
+    for(int j=l; j<6; ++j)
+      mV[i][j] = mV[j][i] = 0;
+    mV[i][i] =1;
+    gbis = vOffDiagonal[i];
+  } // 400
 
 
 
@@ -1238,17 +1209,17 @@ void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static
 
 	  const int k1 = k-1;
 	  // 520 is here!
-	  int do_565 = 0;
+
 	  for(int l=k; l>=0; --l)
 	    { // 530
+	      int do_565 = 0;
 	      const int l1 = l-1;
 	      if((fabs(vOffDiagonal[l]) + anorm) == anorm) {
 		do_565 = 1;
-		break;
+		
 	      } else  if((fabs(vDiagonal[l1]) + anorm) == anorm) {
 		line_540 ( l ,  k,  l1,  anorm,  vOffDiagonal,  vDiagonal,  mU) ;
-		do_565 = 1;
-		break;
+		do_565 = 1;	
 	      }
 	    
 	      if (!do_565) {continue;}
@@ -1724,7 +1695,8 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
 		    float e_delta		    ) {
 
 
-#pragma scop
+
+  
   inline_halfSampleRobustImage_pencil(size1x, size1y, size0x, size0y, ScaledDepth1, ScaledDepth0, e_delta * 3, 1);
   inline_halfSampleRobustImage_pencil(size2x, size2y, size1x, size1y, ScaledDepth2, ScaledDepth1, e_delta * 3, 1);
 
@@ -1742,13 +1714,31 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
     inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
-
+    printf("Test 1\n");
     inline_update_pose_pencil(pose, reductionoutput[0]);
     
   }
-#pragma endscop	
 
+  for (int i = 0; i < iterations1; ++i) {
+
+    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
+
+    inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size1x, size1y);
+    printf("Test 2\n");
+    inline_update_pose_pencil(pose, reductionoutput[0]);
+    
+  }
   
+  for (int i = 0; i < iterations0; ++i) {
+
+    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
+
+    inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size0x, size0y);
+    printf("Test 3\n");
+    inline_update_pose_pencil(pose, reductionoutput[0]);
+    
+  }
+
 
   
   return 0;
