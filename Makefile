@@ -1,7 +1,18 @@
 
 PENCILCC_REPO           := https://github.com/Meinersbur/pencilcc.git
-#PENCILCC_REPO           := https://github.com/chandangreddy/pencilcc.git
-PENCILCC_COMMIT         := pencilcc
+PENCILCC_COMMIT         := ac901b53213382ad1b68fe9d5dadf610d8811e2e
+# Name                                                Date     Commit                                     Bug track          Bug compil
+# Do not store file in subdirectories with --keep   :  1 Apr : e9dda9d8981693368559db5d7b962f1173e13b9b # YES                YES
+# Add and fix cuda tests                            :  9 Feb : 99bae30059fba3150409cc3f2bbdf9a866902cc2 # YES                YES              # no allow
+# Reorganize toolchain; make fit for CUDA           :  5 Feb : cf73e56a262a33f2bb91477c1260bd40e744b7d4 # YES                YES
+# Support for target=cuda                           :  4 Feb : ac901b53213382ad1b68fe9d5dadf610d8811e2e # NO                 ???
+# Fix missing $                                     : 26 Jan : e2e286565d2fa38456dd306d581085bc5f807935 # NO                 ???
+# Fix cpp-flag                                      : 12 Jan : e92daa56b8f63e723740a2ef3947cf797a71b3b4 # ???                ???
+# Revision of pencil-cc                             :  2 Dec : 41f6bf81e90b9534ed034c6292f1cbe824a313f5 # NO                 ???
+# Compile each PENCIL file separately               : 26 Oct : 60fb349ebb10691eb7a8cf014e4c56a76016a2d7 # ???                ???
+# Update prl submodule                              : 24 Oct : f2f350b69756e8d03f69df3a45ad9d64f5856150 # NO                 NO
+
+PPCG_EXTRA_OPTIONS= # --no-allow-gnu-extensions
 
 CHANDAN_REPO            := https://github.com/chandangreddy/pencilcc.git
 CHANDAN_COMMIT          := pencilcc
@@ -27,6 +38,9 @@ PPCG_BASE_OPTIONS+= --opencl-include-file=cl_kernel_vector.cl
 PPCG_BASE_OPTIONS+= --opencl-compiler-options='-I${ROOT_DIR}/src'
 PPCG_BASE_OPTIONS+= --no-opencl-print-kernel-types
 PPCG_BASE_OPTIONS+= --opencl-embed-kernel-code
+
+
+
 # PPCG_BASE_OPTIONS+= --no-allow-gnu-extensions
 # PPCG_BASE_OPTIONS+= -v --dump-schedule-constraints --dump-schedule  --dump-final-schedule --dump-sizes --isl-print-stats # verbose PPCG compilation
 
@@ -115,7 +129,10 @@ slambench :
 	echo "set(prl_path \$$ENV{PRL_PATH})" >> $@/kfusion/CMakeLists.txt
 	echo "set(util_path \$$ENV{PENCIL_UTIL_HOME})" >> $@/kfusion/CMakeLists.txt
 	echo "include_directories(\$${OPENCL_INCLUDE_DIRS} \$${util_path}/include)" >> $@/kfusion/CMakeLists.txt
-	echo "add_library(ppcgKernelsHost src/pencil/pencil_kernels_host.c src/pencil/pencil_kernels_kernel.c)" >> $@/kfusion/CMakeLists.txt
+	echo "file(GLOB pencil_output_files" >> $@/kfusion/CMakeLists.txt
+	echo "    \"src/pencil/*.c\"" >> $@/kfusion/CMakeLists.txt
+	echo ")" >> $@/kfusion/CMakeLists.txt
+	echo "add_library(ppcgKernelsHost \$${pencil_output_files})" >> $@/kfusion/CMakeLists.txt
 	echo "SET_TARGET_PROPERTIES(ppcgKernelsHost PROPERTIES COMPILE_FLAGS \"-std=c99 -I\$${util_path}/include\")" >> $@/kfusion/CMakeLists.txt
 	echo "add_library(\$${appname}-pencilCL  src/pencil/kernels.cpp)" >> $@/kfusion/CMakeLists.txt
 	echo "SET_TARGET_PROPERTIES(\$${appname}-pencilCL PROPERTIES COMPILE_FLAGS \"-I\$${util_path}/include\")" >> $@/kfusion/CMakeLists.txt
@@ -129,7 +146,7 @@ slambench :
 
 slambench/kfusion/src/pencil/pencil_kernels_host.c :  slambench pencilcc-install/bin/ppcg src/pencil_kernels.c
 	mkdir -p  slambench/kfusion/src/pencil/ 
-	cd slambench/kfusion/src/pencil/ && ${PENCILCC_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --no-allow-gnu-extensions --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
+	cd slambench/kfusion/src/pencil/ && ${PENCILCC_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} ${PPCG_EXTRA_OPTIONS} --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
 
 slambench/kfusion/src/pencil/kernels.cpp  : slambench src/kernels.cpp
 	mkdir -p  slambench/kfusion/src/pencil/ 
