@@ -47,30 +47,6 @@ extern "C" {
 	                   const float nearPlane, const float farPlane, const float step, const float largestep);
 
 	int reduce_pencil(float *sums, const uint Jsize_x, const uint Jsize_y, TrackData *J, const uint size_x, const uint size_y);
-
-  int preprocessing_pencil( const uint , const uint, const ushort * inputDepth,
-			    const uint , const uint ,float * floatDepth, float * ScaledDepth,
-			    int radius, float* gaussian, float e_delta);
-
-  int tracking_pencil(unsigned int size0x, unsigned int size0y,
-		      unsigned int size1x, unsigned int size1y,
-		      unsigned int size2x, unsigned int size2y,
-		      float * ScaledDepth0,
-		      float * ScaledDepth1,
-		      float * ScaledDepth2,
-		      float3*,float3*,float3*,
-		      float3*,float3*,float3*,
-		      float3*,float3*,
-		      TrackData*,
-		      float*,
-		      Matrix4, Matrix4,
-		      float,float,
-		      Matrix4 k0,
-		      Matrix4 k1,
-		      Matrix4 k2,
-		      int,int,int,
-		      float e_delta) ;
-    
 }
 
 float * gaussian;
@@ -393,10 +369,11 @@ void reduceKernel(float * out, TrackData* J,
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize)
 {
-  preprocessing_pencil( inputSize.x , inputSize.y,inputDepth, computationSize.x,  computationSize.y, floatDepth, ScaledDepth[0],  radius,  gaussian,  e_delta);
-
-			     
-  return true;
+        
+	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
+	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize,
+	                      gaussian, e_delta, radius);
+	return true;
 }
 
 bool Kfusion::tracking(float4 k, float icp_threshold,
@@ -404,30 +381,41 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 {
 	if (frame % tracking_rate != 0)
 		return false;
-	
-	assert(iterations.size() == 3); // Bruno : assume 3 level of pyramid only (extremely reasonnable)
-	
+
+	for (unsigned int i = 1; i < iterations.size(); ++i) {
+		halfSampleRobustImageKernel(ScaledDepth[i], ScaledDepth[i - 1],
+		                            make_uint2(computationSize.x / (int) pow(2, i),
+		                                       computationSize.y / (int) pow(2, i)),
+		                            e_delta * 3, 1);
+	}
+
+	uint2 localimagesize = computationSize;
+	for (unsigned int i = 0; i < iterations.size(); ++i) {
+		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
+		depth2vertexKernel(inputVertex[i], ScaledDepth[i], localimagesize, invK);
+		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
+		localimagesize = make_uint2(localimagesize.x / 2, localimagesize.y / 2);
+	}
+
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
 
-	tracking_pencil(computationSize.x/1, computationSize.y/1,
-			computationSize.x/2, computationSize.y/2, 
-			computationSize.x/4, computationSize.y/4,
-			ScaledDepth[0], ScaledDepth[1], ScaledDepth[2],
-			inputVertex[0], inputVertex[1], inputVertex[2],
-			inputNormal[0], inputNormal[1], inputNormal[2],
-			vertex,normal,
-			trackingResult,
-			reductionoutput,
-			pose, projectReference, dist_threshold, normal_threshold,
-			getInverseCameraMatrix(k / float(1 << 0)),
-			getInverseCameraMatrix(k / float(1 << 1)),
-			getInverseCameraMatrix(k / float(1 << 2)),
-			iterations[0],
-			iterations[1],
-			iterations[2],
-			e_delta);
-	
+	for (int level = iterations.size() - 1; level >= 0; --level) {
+		uint2 localimagesize = make_uint2(computationSize.x / (int) pow(2, level),
+		                                  computationSize.y / (int) pow(2, level));
+		for (int i = 0; i < iterations[level]; ++i) {
+			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
+			            localimagesize, vertex, normal, computationSize, pose,
+			            projectReference, dist_threshold, normal_threshold);
+
+			reduceKernel(reductionoutput, trackingResult,
+			             computationSize, localimagesize);
+
+			if (updatePoseKernel(pose, reductionoutput, icp_threshold))
+				break;
+
+		}
+	}
 	return checkPoseKernel(pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
 }
