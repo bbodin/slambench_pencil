@@ -114,7 +114,7 @@ slambench-chandan/kfusion/src/pencil/kernels.cpp  : slambench-chandan src/kernel
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
 	cp src/kernels.cpp slambench-chandan/kfusion/src/pencil/
 
-slambench-chandan/living_room_traj2_loop.raw : slambench-chandan
+slambench-chandan/living_room_traj2_loop.raw : slambench-chandan slambench-chandan/build/kfusion/kfusion-benchmark-pencilCL
 	if [ -f ${DATASET} ] ; then cp ${DATASET} slambench-chandan ; else make -C slambench-chandan living_room_traj2_loop.raw ; fi
 
 
@@ -156,7 +156,7 @@ slambench/build/kfusion/% : slambench/kfusion/src/pencil/kernels.cpp slambench/k
 	PRL_PATH=${PENCILCC_INSTALL_DIR} PENCIL_UTIL_HOME=${PENCILCC_INSTALL_DIR} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C slambench SPECIFIC_TARGET=$*
 
 
-slambench/living_room_traj2_loop.raw : slambench
+slambench/living_room_traj2_loop.raw : slambench slambench/build/kfusion/kfusion-benchmark-pencilCL
 	if [ -f ${DATASET} ] ; then cp ${DATASET} slambench ; else make -C slambench living_room_traj2_loop.raw ; fi
 
 
