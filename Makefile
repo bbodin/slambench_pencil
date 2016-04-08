@@ -1,6 +1,6 @@
 
 PENCILCC_REPO           := https://github.com/Meinersbur/pencilcc.git
-PENCILCC_COMMIT         := ac901b53213382ad1b68fe9d5dadf610d8811e2e
+PENCILCC_COMMIT         := pencilcc
 # Name                                                Date     Commit                                     Bug track          Bug compil
 # Do not store file in subdirectories with --keep   :  1 Apr : e9dda9d8981693368559db5d7b962f1173e13b9b # YES                YES
 # Add and fix cuda tests                            :  9 Feb : 99bae30059fba3150409cc3f2bbdf9a866902cc2 # YES                YES              # no allow
@@ -12,7 +12,7 @@ PENCILCC_COMMIT         := ac901b53213382ad1b68fe9d5dadf610d8811e2e
 # Compile each PENCIL file separately               : 26 Oct : 60fb349ebb10691eb7a8cf014e4c56a76016a2d7 # ???                ???
 # Update prl submodule                              : 24 Oct : f2f350b69756e8d03f69df3a45ad9d64f5856150 # NO                 NO
 
-PPCG_EXTRA_OPTIONS= # --no-allow-gnu-extensions
+PPCG_EXTRA_OPTIONS=  --no-allow-gnu-extensions
 
 CHANDAN_REPO            := https://github.com/chandangreddy/pencilcc.git
 CHANDAN_COMMIT          := pencilcc
