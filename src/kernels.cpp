@@ -409,7 +409,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 	
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
-	std::cout << "Worked !" << std::endl;
+
 	tracking_pencil(computationSize.x/1, computationSize.y/1,
 			computationSize.x/2, computationSize.y/2, 
 			computationSize.x/4, computationSize.y/4,
@@ -427,7 +427,6 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 			iterations[1],
 			iterations[2],
 			e_delta);
-  	std::cout << "Yes !" << std::endl;
 	
 	return checkPoseKernel(pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
