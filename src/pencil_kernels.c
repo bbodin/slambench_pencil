@@ -3,6 +3,9 @@
 //
 #include <math.h>
 
+#define min(X,Y) ((X) < (Y) ? (X) : (Y))
+#define max(X,Y) ((X) > (Y) ? (X) : (Y))
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 
