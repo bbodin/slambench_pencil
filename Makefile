@@ -108,7 +108,8 @@ slambench-chandan :
 
 slambench-chandan/kfusion/src/pencil/pencil_kernels_host.c :  slambench-chandan chandan-install/bin/ppcg src/pencil_kernels.c
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
-	cd slambench-chandan/kfusion/src/pencil/ && ${CHANDAN_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c
+	cd slambench-chandan/kfusion/src/pencil/ && ${CHANDAN_INSTALL_DIR}/bin/ppcg ${PPCG_BASE_OPTIONS} --sizes="{$${PPCG_SIZES}}" ${ROOT_DIR}/src/pencil_kernels.c > ppcg.log 2>&1
+	grep warning  slambench-chandan/kfusion/src/pencil/ppcg.log -A10 -B10
 
 slambench-chandan/kfusion/src/pencil/kernels.cpp  : slambench-chandan src/kernels.cpp
 	mkdir -p  slambench-chandan/kfusion/src/pencil/ 
@@ -152,7 +153,7 @@ slambench/kfusion/src/pencil/kernels.cpp  : slambench src/kernels.cpp
 	mkdir -p  slambench/kfusion/src/pencil/ 
 	cp src/kernels.cpp slambench/kfusion/src/pencil/
 
-slambench/build/kfusion/% : slambench/kfusion/src/pencil/kernels.cpp slambench/kfusion/src/pencil/pencil_kernels_host.c 
+slambench/build/kfusion/% : slambench/kfusion/src/pencil/kernels.cpp slambench/kfusion/src/pencil/pencil_kernels_host.c
 	PRL_PATH=${PENCILCC_INSTALL_DIR} PENCIL_UTIL_HOME=${PENCILCC_INSTALL_DIR} CC=${ARCH}gcc CXX=${ARCH}g++ OCLROOT=${OPENCL_SDK} make -C slambench SPECIFIC_TARGET=$*
 
 
