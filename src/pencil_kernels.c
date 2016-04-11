@@ -84,44 +84,37 @@ typedef struct uint2 uint2;
 typedef struct Matrix4 Matrix4;
 typedef struct TrackData TrackData;
 
-inline float3 make_float3(float x, float y, float z) {
-	float3 ret;
-	ret.x = x;
-	ret.y = y;
-	ret.z = z;
-	return ret;
+inline void make_float3(float3 ret[1] , float x, float y, float z) {
+	ret[0].x = x;
+	ret[0].y = y;
+	ret[0].z = z;
 }
 
-inline float4 make_float4(float x, float y, float z,float w) {
-	float4 ret;
-	ret.x = x;
-	ret.y = y;
-	ret.z = z;
-	ret.w = w;
-	return ret;
+inline void make_float4(float4 ret[1], float x, float y, float z,float w) {
+	ret[0].x = x;
+	ret[0].y = y;
+	ret[0].z = z;
+	ret[0].w = w;
 }
 
 
-inline Matrix4 inverse(const Matrix4 A) {
+inline void inverse(Matrix4 R[1] , const Matrix4 A) {
   //	static TooN::Matrix<4, 4, float> I = TooN::Identity;
   //	TooN::Matrix<4, 4, float> temp = TooN::wrapMatrix<4, 4>(&A.data[0].x);
-	Matrix4 R;
   //	TooN::wrapMatrix<4, 4>(&R.data[0].x) = TooN::gaussian_elimination(temp, I);
-	return R;
 }
-inline Matrix4 getCameraMatrix(const float4 k) {
-	Matrix4 K;
-	K.data[0] = make_float4(k.x, 0, k.z, 0);
-	K.data[1] = make_float4(0, k.y, k.w, 0);
-	K.data[2] = make_float4(0, 0, 1, 0);
-	K.data[3] = make_float4(0, 0, 0, 1);
-	return K;
+inline void getCameraMatrix(Matrix4 ret[1], const float4 k) {
+  make_float4(&ret[0].data[0],k.x, 0, k.z, 0);
+  make_float4(&ret[0].data[1],0, k.y, k.w, 0);
+  make_float4(&ret[0].data[2],0, 0, 1, 0);
+  make_float4(&ret[0].data[3],0, 0, 0, 1);
 }
 
 
-static float3 c_rotate(const Matrix4 M, const float3 v)
+static void c_rotate(float3 * ret , const Matrix4 M, const float3 v)
 {
-	return make_float3(M.data[0].x * v.x + M.data[0].y * v.y + M.data[0].z * v.z,
+  
+  make_float3(ret,M.data[0].x * v.x + M.data[0].y * v.y + M.data[0].z * v.z,
 			M.data[1].x * v.x + M.data[1].y * v.y + M.data[1].z * v.z,
 			M.data[2].x * v.x + M.data[2].y * v.y + M.data[2].z * v.z);
 }
@@ -497,7 +490,7 @@ int initVolume_pencil(const unsigned int v_size_x, const unsigned int v_size_y, 
 return 0;
 }
 
-int integrateKernel_pencil(const unsigned int vol_size_x, const unsigned int vol_size_y,
+void integrateKernel_pencil(int return_value[1], const unsigned int vol_size_x, const unsigned int vol_size_y,
 		const unsigned int vol_size_z, const float3 vol_dim,
 		short2 vol_data[restrict const static vol_size_z][vol_size_y][vol_size_x],
 		unsigned int depthSize_x, unsigned int depthSize_y,
@@ -505,10 +498,12 @@ int integrateKernel_pencil(const unsigned int vol_size_x, const unsigned int vol
 		const Matrix4 invTrack, const Matrix4 K,
 		const float mu, const float maxweight)
 {
-
-  const float3 delta = c_rotate(invTrack,
-			make_float3(0, 0, vol_dim.z / vol_size_z));
-	const float3 cameraDelta = c_rotate(K, delta);
+  float3 tmpf;
+  make_float3(&tmpf,0, 0, vol_dim.z / vol_size_z);
+  float3 delta ;
+  c_rotate(&delta,invTrack,tmpf);
+  float3 cameraDelta;
+  c_rotate(&cameraDelta,K, delta);
 #pragma scop
 
 	{
@@ -532,7 +527,7 @@ int integrateKernel_pencil(const unsigned int vol_size_x, const unsigned int vol
 		}
 	}
 #pragma endscop
-	return 0;
+	return_value[0] = 0;
 }
 
 int depth2vertex_pencil(unsigned int imageSize_x, unsigned int imageSize_y,
@@ -795,7 +790,7 @@ int renderVolume_pencil(unsigned int depthSize_x, unsigned int depthSize_y,
 return 0;
 }
 
-int raycast_pencil(unsigned int inputSize_x, unsigned int inputSize_y,
+void raycast_pencil(unsigned int inputSize_x, unsigned int inputSize_y,
 		float3 vertex[restrict const static inputSize_y][inputSize_x],
 		float3 normal[restrict const static inputSize_y][inputSize_x],
 		const unsigned int integration_size_x, const unsigned int integration_size_y, const unsigned int integration_size_z,
@@ -827,7 +822,7 @@ int raycast_pencil(unsigned int inputSize_x, unsigned int inputSize_y,
 		}
 	}
 #pragma endscop
-return 0;
+
 }
 
 int track_pencil(unsigned int refSize_x, unsigned int refSize_y, unsigned int inSize_x, unsigned int inSize_y,
@@ -1012,7 +1007,7 @@ void line_540 (int l , int k, int l1, float anorm, float vOffDiagonal[6], float 
 
 
 void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32] ) {
-  
+
 
   for (int j = 1; j < 8; ++j) {
     for (int x = 0; x < 32; ++x) {
@@ -1251,7 +1246,7 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
 	      }
 	    
 	      if (!do_565) {continue;}
-
+	      else // FIXME : no bug report
 	      {
 		// Check for convergence..
 		z = vDiagonal[k];
@@ -1684,31 +1679,33 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
 
     /* skipped test : lnorm < icp_threshold */
   }
+
 }
 
-inline Matrix4 getInverseCameraMatrix(const float4  k) {
-	Matrix4 invK;
-	invK.data[0] = make_float4(1.0f / k.x, 0, -k.z / k.x, 0);
-	invK.data[1] = make_float4(0, 1.0f / k.y, -k.w / k.y, 0);
-	invK.data[2] = make_float4(0, 0, 1, 0);
-	invK.data[3] = make_float4(0, 0, 0, 1);
-	return invK;
+inline Matrix4 getInverseCameraMatrix(Matrix4 * invK, const float4  k) {
+
+  make_float4(&invK->data[0],1.0f / k.x, 0, -k.z / k.x, 0);
+  make_float4(&invK->data[1],0, 1.0f / k.y, -k.w / k.y, 0);
+  make_float4(&invK->data[2],0, 0, 1, 0);
+  make_float4(&invK->data[3],0, 0, 0, 1);
+
 }
 
 
 
-int checkPoseKernel(Matrix4 * pose, Matrix4 oldPose, const float values[restrict const static 8][32] ,
+int checkPoseKernel(int * return_value, Matrix4 * pose, Matrix4 oldPose, const float values[restrict const static 8][32] ,
                      uint2 imageSize, float track_threshold)
 {
 
 
-	if ((sqrt(values[0][0] / values[0][28]) > 2e-2) ||
-	    (values[0][28] / (imageSize.x * imageSize.y) < track_threshold)) {
-		*pose = oldPose;
-		return 0;
-	} else {
-		return 1;
-	}
+  if ((sqrt(values[0][0] / values[0][28]) > 2e-2) ||
+      (values[0][28] / (imageSize.x * imageSize.y) < track_threshold)) {
+    pose[0] = oldPose;
+    return_value[0] = 0;
+  } else {
+    return_value[0] = 1;
+    
+  }
 
 }
 
@@ -1796,14 +1793,14 @@ int preprocessing_pencil(
 	int ratio = inputSizex / computationSizex;
 	uint2 computationSize = {computationSizex,computationSizey};
 
-	#pragma scop
+
 	
 	inline_mm2meters_pencil(computationSizex, computationSizey, floatDepth, inputSizex, inputSizey, inputDepth, ratio);
 
 	
 	inline_bilateralFilter_pencil(computationSizex, computationSizey, ScaledDepth , floatDepth, computationSize, (radius * 2 + 1), gaussian, e_delta, radius);
 
-	#pragma endscop
+
 	
 	return 0;
 }
@@ -1851,7 +1848,7 @@ int process_frame ( const uint inputSizex,
 		    
 		    const float nearPlane, const float farPlane,
 		    const float step, const float largestep,
-		    int * tracked, int* integrated
+		    int tracked[1], int integrated[1]
 		    ) {
 
   int ratio = inputSizex / size0x;
@@ -1880,15 +1877,17 @@ int process_frame ( const uint inputSizex,
 
   inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
-#pragma endscop
+
   Matrix4 oldPose = pose[0];
-  
+
   for (int i = 0; i < iterations2; ++i) {
     inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
+
     update_pose_works(pose, reductionoutput);
+
   }
-  
+
   for (int i = 0; i < iterations1; ++i) {
     
     inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
@@ -1896,7 +1895,7 @@ int process_frame ( const uint inputSizex,
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size1x, size1y);
     update_pose_works(pose, reductionoutput);
   }
-  
+
   for (int i = 0; i < iterations0; ++i) {
 
     inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
@@ -1906,15 +1905,21 @@ int process_frame ( const uint inputSizex,
   }
   
 
- *tracked =  checkPoseKernel(pose, oldPose, reductionoutput,
+  checkPoseKernel(tracked,pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
 
- *integrated = integrateKernel_pencil(
+  Matrix4 invPose;
+  inverse(&invPose,pose[0]);
+
+  Matrix4 gmk;
+  getCameraMatrix(&gmk,k);
+  integrateKernel_pencil(
+		      integrated,
 		      integration_size_x, integration_size_y, integration_size_z,
 		      integration_dim, integration_data,
 		      inputSizex , inputSizey,
 		      floatDepth,
-		      inverse(pose[0]), getCameraMatrix(k), mu, maxweight);
+		      invPose,gmk, mu, maxweight);
 
  
 
@@ -1922,7 +1927,7 @@ int process_frame ( const uint inputSizex,
 		 integration_size_y, integration_size_z, integration_data,
 		 integration_dim, view, nearPlane, farPlane, step, largestep);
   
-
+#pragma endscop
   return 0;
 }
 
