@@ -111,7 +111,7 @@ inline void getCameraMatrix(Matrix4 ret[1], const float4 k) {
 }
 
 
-static void c_rotate(float3 * ret , const Matrix4 M, const float3 v)
+static void c_rotate(float3 ret[1] , const Matrix4 M, const float3 v)
 {
   
   make_float3(ret,M.data[0].x * v.x + M.data[0].y * v.y + M.data[0].z * v.z,
@@ -1682,18 +1682,18 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
 
 }
 
-inline Matrix4 getInverseCameraMatrix(Matrix4 * invK, const float4  k) {
+inline void getInverseCameraMatrix(Matrix4 invK[1], const float4  k) {
 
-  make_float4(&invK->data[0],1.0f / k.x, 0, -k.z / k.x, 0);
-  make_float4(&invK->data[1],0, 1.0f / k.y, -k.w / k.y, 0);
-  make_float4(&invK->data[2],0, 0, 1, 0);
-  make_float4(&invK->data[3],0, 0, 0, 1);
+  make_float4(&invK[0].data[0],1.0f / k.x, 0, -k.z / k.x, 0);
+  make_float4(&invK[0].data[1],0, 1.0f / k.y, -k.w / k.y, 0);
+  make_float4(&invK[0].data[2],0, 0, 1, 0);
+  make_float4(&invK[0].data[3],0, 0, 0, 1);
 
 }
 
 
 
-int checkPoseKernel(int * return_value, Matrix4 * pose, Matrix4 oldPose, const float values[restrict const static 8][32] ,
+void checkPoseKernel(int return_value[1], Matrix4 pose[1], Matrix4 oldPose, const float values[restrict const static 8][32] ,
                      uint2 imageSize, float track_threshold)
 {
 
