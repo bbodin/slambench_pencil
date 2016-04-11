@@ -72,11 +72,6 @@ struct TrackData {
 
 
 
-typedef struct Volume {
-	struct uint3 size;
-	struct float3 dim;
-        struct short2 * data;
-} Volume;
 
 typedef struct float3 float3;
 typedef struct float4 float4;
@@ -105,6 +100,24 @@ inline float4 make_float4(float x, float y, float z,float w) {
 	ret.w = w;
 	return ret;
 }
+
+
+inline Matrix4 inverse(const Matrix4 A) {
+  //	static TooN::Matrix<4, 4, float> I = TooN::Identity;
+  //	TooN::Matrix<4, 4, float> temp = TooN::wrapMatrix<4, 4>(&A.data[0].x);
+	Matrix4 R;
+  //	TooN::wrapMatrix<4, 4>(&R.data[0].x) = TooN::gaussian_elimination(temp, I);
+	return R;
+}
+inline Matrix4 getCameraMatrix(const float4 k) {
+	Matrix4 K;
+	K.data[0] = make_float4(k.x, 0, k.z, 0);
+	K.data[1] = make_float4(0, k.y, k.w, 0);
+	K.data[2] = make_float4(0, 0, 1, 0);
+	K.data[3] = make_float4(0, 0, 0, 1);
+	return K;
+}
+
 
 static float3 c_rotate(const Matrix4 M, const float3 v)
 {
@@ -1627,7 +1640,7 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
       RR.data[j].w =  TmpRes[3][j] ;
 
     }
-    Matrix4 m1 = *pose;
+    Matrix4 m1 = pose[0];
     Matrix4 m2 = RR;
     Matrix4 m3;
     for (int i = 0; i < 4; i++ ) {
@@ -1668,7 +1681,7 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
     }
     float lnorm =     sqrt(xsqr);
 
-    return;
+
     /* skipped test : lnorm < icp_threshold */
   }
 }
@@ -1683,6 +1696,21 @@ inline Matrix4 getInverseCameraMatrix(const float4  k) {
 }
 
 
+
+int checkPoseKernel(Matrix4 * pose, Matrix4 oldPose, const float values[restrict const static 8][32] ,
+                     uint2 imageSize, float track_threshold)
+{
+
+
+	if ((sqrt(values[0][0] / values[0][28]) > 2e-2) ||
+	    (values[0][28] / (imageSize.x * imageSize.y) < track_threshold)) {
+		*pose = oldPose;
+		return 0;
+	} else {
+		return 1;
+	}
+
+}
 
 
 int tracking_pencil(unsigned int size0x, unsigned int size0y,
@@ -1725,14 +1753,14 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
 
   for (int i = 0; i < iterations2; ++i) {
-    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
     update_pose_works(pose, reductionoutput);
   }
   
   for (int i = 0; i < iterations1; ++i) {
 
-    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size1x, size1y);
     update_pose_works(pose, reductionoutput);
@@ -1740,7 +1768,7 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
   
   for (int i = 0; i < iterations0; ++i) {
 
-    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size0x, size0y);
     update_pose_works(pose, reductionoutput);
@@ -1780,7 +1808,7 @@ int preprocessing_pencil(
 	return 0;
 }
 
-/*
+
 						 
 int process_frame ( const uint inputSizex,
 		    const uint inputSizey,
@@ -1805,20 +1833,25 @@ int process_frame ( const uint inputSizex,
 		    TrackData trackingResult[restrict const static size0y][size0x],
 		    float reductionoutput[restrict const static 8][32] ,
 		    Matrix4 * pose, const Matrix4 projectReference,
-		    const float dist_threshold, const float normal_threshold,		   
+		    const float dist_threshold, const float normal_threshold,
+		    const float track_threshold,
 		    Matrix4 invK0, Matrix4 invK1, Matrix4 invK2,
 		    int iterations0 ,
 		    int iterations1 ,
 		    int iterations2 ,
 		    float e_delta,
-
-		    const Volume integration,
+		    const unsigned int integration_size_x,
+		    const unsigned int integration_size_y,
+		    const unsigned int integration_size_z,
+		    short2 integration_data[restrict const static integration_size_z][integration_size_y][integration_size_x],
+		    const float3 integration_dim,
 		    const Matrix4 view,
-		    const Matrix4 invTrack, const Matrix4 K, const float mu,
+		    const Matrix4 invTrack, const float4 k, const float mu,
 		    const float maxweight,
 		    
 		    const float nearPlane, const float farPlane,
-		    const float step, const float largestep
+		    const float step, const float largestep,
+		    int * tracked, int* integrated
 		    ) {
 
   int ratio = inputSizex / size0x;
@@ -1831,7 +1864,7 @@ int process_frame ( const uint inputSizex,
   
   inline_bilateralFilter_pencil(size0x, size0y, ScaledDepth0 , floatDepth, computationSize, (radius * 2 + 1), gaussian, e_delta, radius);
   
-#pragma endscop
+
   
   
   
@@ -1847,16 +1880,18 @@ int process_frame ( const uint inputSizex,
 
   inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
-
+#pragma endscop
+  Matrix4 oldPose = pose[0];
+  
   for (int i = 0; i < iterations2; ++i) {
-    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
     update_pose_works(pose, reductionoutput);
   }
   
   for (int i = 0; i < iterations1; ++i) {
     
-    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
     
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size1x, size1y);
     update_pose_works(pose, reductionoutput);
@@ -1864,22 +1899,30 @@ int process_frame ( const uint inputSizex,
   
   for (int i = 0; i < iterations0; ++i) {
 
-    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size0x, size0y);
     update_pose_works(pose, reductionoutput);
   }
   
 
+ *tracked =  checkPoseKernel(pose, oldPose, reductionoutput,
+	                       computationSize, track_threshold);
 
- int   _integrated = integrateKernel_pencil(integration.size.x, integration.size.y, integration.size.z, integration.dim,
-			 integration.data,inputSizex , inputSizey, floatDepth,
-			 invTrack, K, mu, maxweight);
+ *integrated = integrateKernel_pencil(
+		      integration_size_x, integration_size_y, integration_size_z,
+		      integration_dim, integration_data,
+		      inputSizex , inputSizey,
+		      floatDepth,
+		      inverse(pose[0]), getCameraMatrix(k), mu, maxweight);
 
-  raycast_pencil(inputSizex, inputSizey, refVertex, refNormal, integration.size.x,
-		 integration.size.y, integration.size.z, integration.data,
-		 integration.dim, view, nearPlane, farPlane, step, largestep);
+ 
+
+  raycast_pencil(inputSizex, inputSizey, refVertex, refNormal, integration_size_x,
+		 integration_size_y, integration_size_z, integration_data,
+		 integration_dim, view, nearPlane, farPlane, step, largestep);
   
-	
+
+  return 0;
 }
-*/
+
