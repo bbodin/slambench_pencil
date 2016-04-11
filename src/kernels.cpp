@@ -70,7 +70,34 @@ extern "C" {
 		      Matrix4 k2,
 		      int,int,int,
 		      float e_delta) ;
-    
+    						 
+int process_frame ( const uint inputSizex,
+		    const uint inputSizey,
+		    const unsigned short * inputDepth,
+		    unsigned int size0x, unsigned int size0y,
+		    unsigned int size1x, unsigned int size1y,
+		    unsigned int size2x, unsigned int size2y,
+		    float*    floatDepth,
+		    float radius,
+		    float* gaussian,
+		    float * ScaledDepth0,
+		    float * ScaledDepth1,
+		    float * ScaledDepth2,
+		    float3*,float3*,float3*,
+		    float3*,float3*,float3*,
+		    float3*,float3*,
+		    TrackData*,
+		    float*,
+		    Matrix4*, Matrix4,
+		    float,float,
+		    Matrix4 k0,
+		    Matrix4 k1,
+		    Matrix4 k2,
+		    int,int,int,
+		    float e_delta
+		    
+		    ) ;
+  
 }
 
 float * gaussian;
@@ -1210,26 +1237,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 			iterations[1],
 			iterations[2],
 			e_delta);
-/*
 
-	for (int level = iterations.size() - 1; level >= 0; --level) {
-	  uint2 localimagesize = make_uint2(computationSize.x / (int) pow(2, level),
-					    computationSize.y / (int) pow(2, level));
-	  for (int i = 0; i < iterations[level]; ++i) {
-	    trackKernel(trackingResult, inputVertex[level], inputNormal[level],
-			localimagesize, vertex, normal, computationSize, pose,
-			projectReference, dist_threshold, normal_threshold);
-	    
-	    reduceKernel(reductionoutput, trackingResult,
-			 computationSize, localimagesize);
-	     
-	    if (updatePoseKernel(pose, reductionoutput, icp_threshold))
-	      break;
-	    
-	  }
-	}
-
-*/	
 	
 	return checkPoseKernel(pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
@@ -1313,3 +1321,40 @@ void synchroniseDevices()
 {
 	// Nothing to do in the C++ implementation
 }
+
+void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
+			  float4 k, uint integration_rate, uint tracking_rate,
+			  float icp_threshold, float mu, const uint frame) {
+
+  preprocessing(inputDepth, inputSize);
+  _tracked = tracking(k, icp_threshold, tracking_rate, frame);
+  _integrated = integration(k, integration_rate, mu, frame);
+  raycasting(k, mu, frame);
+  
+ /* 
+  process_frame(inputSize.x , inputSize.y,
+		inputDepth,
+		computationSize.x/1, computationSize.y/1,
+		computationSize.x/2, computationSize.y/2, 
+		computationSize.x/4, computationSize.y/4,
+		floatDepth,
+		radius,
+		gaussian,
+		ScaledDepth[0], ScaledDepth[1], ScaledDepth[2],
+		inputVertex[0], inputVertex[1], inputVertex[2],
+		inputNormal[0], inputNormal[1], inputNormal[2],
+		vertex,normal,
+		trackingResult,
+		reductionoutput,
+		&pose, projectReference, dist_threshold, normal_threshold,
+		getInverseCameraMatrix(k / float(1 << 0)),
+		getInverseCameraMatrix(k / float(1 << 1)),
+		getInverseCameraMatrix(k / float(1 << 2)),
+		iterations[0],
+		iterations[1],
+		iterations[2],
+		e_delta);
+  
+ */	
+}
+
