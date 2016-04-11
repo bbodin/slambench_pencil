@@ -1854,7 +1854,7 @@ int process_frame ( const uint inputSizex,
   int ratio = inputSizex / size0x;
   uint2 computationSize = {size0x,size0y};
   
-#pragma scop
+
   
   inline_mm2meters_pencil(size0x, size0y, floatDepth, inputSizex, inputSizey, inputDepth, ratio);
   
@@ -1927,7 +1927,7 @@ int process_frame ( const uint inputSizex,
 		 integration_size_y, integration_size_z, integration_data,
 		 integration_dim, view, nearPlane, farPlane, step, largestep);
   
-#pragma endscop
+
   return 0;
 }
 
