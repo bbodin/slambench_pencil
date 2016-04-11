@@ -950,17 +950,6 @@ inline void inline_reduce_pencil(float sums[restrict const static 8][32], const 
 		}
  
 
-		// Bruno : Add final reduction
-		
-		for (int j = 1; j < 8; ++j) {
-		  for (int x = 0; x < 32; ++x) {
-		    sums [0] [1 + x] += sums [j] [1 + x ];
-		  }
-		}
-		
-		for (int i = 0; i < 32; i++) {
-		  sums[0][i] = sums[0][i+1];
-		}
 		
 	}
 #pragma endscop
@@ -2377,6 +2366,680 @@ void inline_update_pose_pencil(Matrix4 pose , float output[restrict const static
   }
 }
 
+void update_pose_works(Matrix4 * pose , float* output ) {
+  
+
+  for (int j = 1; j < 8; ++j) {
+    for (int x = 0; x < 32; ++x) {
+      output [x] += output [x + j * 32 ];
+    }
+  }
+  
+  float mU[6][6];
+  
+  
+  for (int r = 1; r < 6; ++r)
+    for (int c = 0; c < r; ++c)
+      mU[r][c] = 0;
+  
+
+
+  mU[0][0] = output[7];
+  mU[0][1] = output[8];
+  mU[0][2] = output[9];
+  mU[0][3] = output[10];
+  mU[0][4] = output[11];
+  mU[0][5] = output[12];
+  mU[1][1] = output[13];
+  mU[1][2] = output[14];
+  mU[1][3] = output[15];
+  mU[1][4] = output[16];
+  mU[1][5] = output[17];
+  mU[2][2] = output[18];
+  mU[2][3] = output[19];
+  mU[2][4] = output[20];
+  mU[2][5] = output[21];
+  mU[3][3] = output[22];
+  mU[3][4] = output[23];
+  mU[3][5] = output[24];
+  mU[4][4] = output[25];
+  mU[4][5] = output[26];
+  mU[5][5] = output[27];
+
+  for (int r = 1; r < 6; ++r)
+    for (int c = 0; c < r; ++c)
+      mU[r][c] = mU[c][r];
+
+
+  int nError = 0;
+
+  //Bidiagonalize();
+
+  float vDiagonal[6];
+  float vOffDiagonal[6];
+  float mV[6][6];
+
+  // ------------  Householder reduction to bidiagonal form
+  float g = 0.0;
+  float scale = 0.0;
+  float anorm = 0.0;
+  for(int i=0; i<6; ++i) // 300
+    {
+      const int l = i+1;
+      vOffDiagonal[i] = scale * g;
+      g = 0.0;
+      float s = 0.0;
+      scale = 0.0;
+      if( i < 6 )
+	{
+	  for(int k=i; k<6; ++k)
+	    scale += fabs(mU[k][i]);
+	  if(scale != 0.0)
+	    {
+	      for(int k=i; k<6; ++k)
+		{
+		  mU[k][i] /= scale;
+		  s += mU[k][i] * mU[k][i];
+		}
+	      float f = mU[i][i];
+	      g = -(f>=0?sqrt(s):-sqrt(s));
+	      float h = f * g - s;
+	      mU[i][i] = f - g;
+	      if(i!=(6-1))
+		{
+		  for(int j=l; j<6; ++j)
+		    {
+		      s = 0.0;
+		      for(int k=i; k<6; ++k)
+			s += mU[k][i] * mU[k][j];
+		      f = s / h;
+		      for(int k=i; k<6; ++k)
+			mU[k][j] += f * mU[k][i];
+		    } // 150
+		}// 190
+	      for(int k=i; k<6; ++k)
+		mU[k][i] *= scale;
+	    } // 210
+	} // 210
+      vDiagonal[i] = scale * g;
+      g = 0.0;
+      s = 0.0;
+      scale = 0.0;
+      if(!(i >= 6 || i == (6-1)))
+	{
+	  for(int k=l; k<6; ++k)
+	    scale += fabs(mU[i][k]);
+	  if(scale != 0.0)
+	    {
+	      for(int k=l; k<6; k++)
+		{
+		  mU[i][k] /= scale;
+		  s += mU[i][k] * mU[i][k];
+		}
+	      float f = mU[i][l];
+	      g = -(f>=0?sqrt(s):-sqrt(s));
+	      float h = f * g - s;
+	      mU[i][l] = f - g;
+	      for(int k=l; k<6; ++k)
+		vOffDiagonal[k] = mU[i][k] / h;
+	      if(i != (6-1)) // 270
+		{
+		  for(int j=l; j<6; ++j)
+		    {
+		      s = 0.0;
+		      for(int k=l; k<6; ++k)
+			s += mU[j][k] * mU[i][k];
+		      for(int k=l; k<6; ++k)
+			mU[j][k] += s * vOffDiagonal[k];
+		    } // 260
+		} // 270
+	      for(int k=l; k<6; ++k)
+		mU[i][k] *= scale;
+	    } // 290
+	} // 290
+      anorm = max(anorm, fabs(vDiagonal[i]) + fabs(vOffDiagonal[i]));
+    } // 300
+
+  // Accumulation of right-hand transformations
+
+  //Accumulate_RHS();
+
+  // Get rid of fakey loop over ii, do a loop over i directly
+  // This here would happen on the first run of the loop with
+  // i = N-1
+  mV[6-1][6-1] = 1;
+  float gbis = vOffDiagonal[6-1];
+
+  // The loop
+  for(int i=6-2; i>=0; --i) {  // 400
+    
+    const int l = i + 1;
+    if( gbis!=0) // 360
+      {
+	for(int j=l; j<6; ++j)
+	  mV[j][i] = (mU[i][j] / mU[i][l]) / gbis; // float division avoids possible underflow
+	for(int j=l; j<6; ++j)
+	  { // 350
+	    float s = 0;
+	    for(int k=l; k<6; ++k)
+	      s += mU[i][k] * mV[k][j];
+	    for(int k=l; k<6; ++k)
+	      mV[k][j] += s * mV[k][i];
+	  } // 350
+      } // 360
+    for(int j=l; j<6; ++j)
+      mV[i][j] = mV[j][i] = 0;
+    mV[i][i] =1;
+    gbis = vOffDiagonal[i];
+  } // 400
+
+
+
+
+
+  //Accumulate_LHS();
+
+  // Same thing; remove loop over dummy ii and do straight over i
+  // Some implementations start from N here
+  for(int i=6-1; i>=0; --i)
+    { // 500
+      const int l = i+1;
+      float g = vDiagonal[i];
+      // SqSVD here uses i<N ?
+      if(i != (6-1))
+	for(int j=l; j<6; ++j)
+	  mU[i][j] = 0.0;
+      if(g == 0.0)
+	for(int j=i; j<6; ++j)
+	  mU[j][i] = 0.0;
+      else
+	{ // 475
+	  // Can pre-divide g here
+	  float inv_g = 1 / g;
+	  if(i != (6-1))
+	    { // 460
+	      for(int j=l; j<6; ++j)
+		{ // 450
+		  float s = 0;
+		  for(int k=l; k<6; ++k)
+		    s += mU[k][i] * mU[k][j];
+		  float f = (s / mU[i][i]) * inv_g;  // float division
+		  for(int k=i; k<6; ++k)
+		    mU[k][j] += f * mU[k][i];
+		} // 450
+	    } // 460
+	  for(int j=i; j<6; ++j)
+	    mU[j][i] *= inv_g;
+	} // 475
+      mU[i][i] += 1;
+    } // 500
+
+
+  //Diagonalize();
+  int anticipate_exit = 0;
+  // Loop directly over descending k
+  for(int k=6-1; k>=0; --k)
+    { // 700
+      int nIterations = 0;
+      float z;
+      int bConverged_Or_Error = 0;
+      int first = 1;
+      while(!bConverged_Or_Error || first == 1)
+	{
+	  first = 0;
+	  int result = 0;
+	  //  bConverged_Or_Error = Diagonalize_SubLoop(k, z);
+
+	  const int k1 = k-1;
+	  // 520 is here!
+
+	  for(int l=k; l>=0; --l)
+	    { // 530
+	      int do_565 = 0;
+	      const int l1 = l-1;
+	      if((fabs(vOffDiagonal[l]) + anorm) == anorm) {
+		do_565 = 1;
+		
+	      } else  if((fabs(vDiagonal[l1]) + anorm) == anorm) {
+		line_540 ( l ,  k,  l1,  anorm,  vOffDiagonal,  vDiagonal,  mU) ;
+		do_565 = 1;	
+	      }
+	    
+	      if (!do_565) {continue;}
+
+	      {
+		// Check for convergence..
+		z = vDiagonal[k];
+		if(l == k) {
+		  result = 1; // convergence.
+		  break;
+		}
+		if(nIterations == 30)
+		  {
+                    nError = k;
+                    result = 1; // convergence.
+                    break;
+		  }
+		++nIterations;
+		float x = vDiagonal[l];
+		float y = vDiagonal[k1];
+		float g = vOffDiagonal[k1];
+		float h = vOffDiagonal[k];
+		float f = ((y-z)*(y+z) + (g-h)*(g+h)) / (2.0*h*y);
+		g = sqrt(f*f + 1.0);
+		float signed_g =  (f>=0)?g:-g;
+		f = ((x-z)*(x+z) + h*(y/(f + signed_g) - h)) / x;
+
+		// Next QR transformation
+		float c = 1.0;
+		float s = 1.0;
+		for(int i1 = l; i1<=k1; ++i1)
+		  { // 600
+                    const int i=i1+1;
+                    g = vOffDiagonal[i];
+                    y = vDiagonal[i];
+                    h = s*g;
+                    g = c*g;
+                    z = sqrt(f*f + h*h);
+                    vOffDiagonal[i1] = z;
+                    c = f/z;
+                    s = h/z;
+                    f = x*c + g*s;
+                    g = -x*s + g*c;
+                    h = y*s;
+                    y *= c;
+                    if(1)
+                      for(int j=0; j<6; ++j)
+                        {
+                          float xx = mV[j][i1];
+                          float zz = mV[j][i];
+                          mV[j][i1] = xx*c + zz*s;
+                          mV[j][i] = -xx*s + zz*c;
+                        }
+                    z = sqrt(f*f + h*h);
+                    vDiagonal[i1] = z;
+                    if(z!=0)
+                      {
+                        c = f/z;
+                        s = h/z;
+                      }
+                    f = c*g + s*y;
+                    x = -s*g + c*y;
+                    if(1)
+                      for(int j=0; j<6; ++j)
+                        {
+                          float yy = mU[j][i1];
+                          float zz = mU[j][i];
+                          mU[j][i1] = yy*c + zz*s;
+                          mU[j][i] = -yy*s + zz*c;
+                        }
+		  } // 600
+		vOffDiagonal[l] = 0;
+		vOffDiagonal[k] = f;
+		vDiagonal[k] = x;
+		result = 0; // convergence.
+		break;
+		// EO IF NOT CONVERGED CHUNK
+	      } // EO IF TESTS HOLD
+	    } // 530
+	  // Code should never get here!
+
+	  bConverged_Or_Error = result;
+	}
+
+
+      if(nError) {
+	anticipate_exit = 1;
+	break;
+      }
+
+      if(z < 0)
+	{
+	  vDiagonal[k] = -z;
+	  if(1)
+	    for(int j=0; j<6; ++j)
+	      mV[j][k] = -mV[j][k];
+	}
+    } // 700
+
+
+  if (anticipate_exit) {
+
+  } else {
+  
+
+    float inv_diag[6];
+
+    float dMax = vDiagonal[0];
+    for(int i=1; i<6; ++i) dMax = max(dMax, vDiagonal[i]);
+
+    for(int i=0; i<6; ++i)
+      inv_diag[i] = (vDiagonal[i] * 1e6 > dMax) ? 1/vDiagonal[i] : 0;
+
+
+    float b[6];
+    b[0] = output[1];
+    b[1] = output[2];
+    b[2] = output[3];
+    b[3] = output[4];
+    b[4] = output[5];
+    b[5] = output[6];
+
+    // Transpose mU
+    float TmU[6][6];
+    for(int i=0; i<6; ++i)
+      for(int j=0; j<6; ++j) {
+	TmU[j][i] = mU[i][j] ;
+      }
+
+
+
+
+    float vTmUfvb[6];// = vTmU * vb;
+
+    for(int i=0; i<6; i++) {
+      vTmUfvb[i] = 0;
+      for(int k = 0; k<6; k++)
+	vTmUfvb[i] += TmU[i][k]*b[k];
+    }
+
+    float diagmultres [6];//= diagmult(vinv_diag, vTmUfvb) ;
+
+    for(int i=0; i<6; i++) {
+      diagmultres[i]  = inv_diag[i]*vTmUfvb[i];
+    }
+
+
+    float x [6];
+
+    for(int i=0; i<6; i++) {
+      x[i] = 0;
+      for(int k = 0; k<6; k++)
+	x[i] += mV[i][k]*diagmultres[k];
+    }
+
+
+    // From here only MatMult, Ok
+
+    const float one_6th = 1.0/6.0;
+    const float one_20th = 1.0/20.0;
+
+
+    float  my_rotation_matrix[3][3];
+    float my_translation[3];
+
+
+    float w[3];
+    w[0] = x[3];
+    w[1] = x[4];
+    w[2] = x[5];
+    float xf[3];
+    xf[0] = x[0];
+    xf[1] = x[1];
+    xf[2] = x[2];
+    const float theta_sq = w[0]*w[0] + w[1]*w[1] + w[2]*w[2] ;
+    const float theta = sqrt(theta_sq);
+    float A, B;
+
+    float cross[3];
+
+    cross[0] = w[1]*xf[2] - w[2]*xf[1];
+    cross[1] = w[2]*xf[0] - w[0]*xf[2];
+    cross[2] = w[0]*xf[1] - w[1]*xf[0];
+
+    if (theta_sq < 1e-8) {
+      A = 1.0 - one_6th * theta_sq;
+      B = 0.5;
+      my_translation[0] = xf[0] + 0.5 * cross[0];
+      my_translation[1] = xf[1] + 0.5 * cross[1];
+      my_translation[2] = xf[2] + 0.5 * cross[2];
+    } else {
+      float C;
+      if (theta_sq < 1e-6) {
+	C = one_6th*(1.0 - one_20th * theta_sq);
+	A = 1.0 - theta_sq * C;
+	B = 0.5 - 0.25 * one_6th * theta_sq;
+      } else {
+	const float inv_theta = 1.0/theta;
+	A = sin(theta) * inv_theta;
+	B = (1 - cos(theta)) * (inv_theta * inv_theta);
+	C = (1 - A) * (inv_theta * inv_theta);
+      }
+
+      float wcross[3];
+
+      wcross[0] = w[1]*cross[2] - w[2]*cross[1];
+      wcross[1] = w[2]*cross[0] - w[0]*cross[2];
+      wcross[2] = w[0]*cross[1] - w[1]*cross[0];
+
+      float Bcross[3];
+      Bcross[0] = B *  cross[0];
+      Bcross[1] = B *  cross[1];
+      Bcross[2] = B *  cross[2];
+
+      float Ccross[3];
+      Ccross[0] = C *  cross[0];
+      Ccross[1] = C *  cross[1];
+      Ccross[2] = C *  cross[2];
+
+
+      my_translation[0] = xf[0] + Bcross[0] + Ccross[0];
+      my_translation[1] = xf[1] + Bcross[1] + Ccross[1];
+      my_translation[2] = xf[2] + Bcross[2] + Ccross[2];
+    }
+
+    //rodrigues_so3_exp(w, A, B, result.get_rotation().my_matrix);
+    {
+      const float wx2 = (float)w[0]*w[0];
+      const float wy2 = (float)w[1]*w[1];
+      const float wz2 = (float)w[2]*w[2];
+
+      my_rotation_matrix[0][0] = 1.0 - B*(wy2 + wz2);
+      my_rotation_matrix[1][1] = 1.0 - B*(wx2 + wz2);
+      my_rotation_matrix[2][2] = 1.0 - B*(wx2 + wy2);
+    }
+    {
+      const float a = A*w[2];
+      const float b = B*(w[0]*w[1]);
+      my_rotation_matrix[0][1] = b - a;
+      my_rotation_matrix[1][0] = b + a;
+    }
+    {
+      const float a = A*w[1];
+      const float b = B*(w[0]*w[2]);
+      my_rotation_matrix[0][2] = b + a;
+      my_rotation_matrix[2][0] = b - a;
+    }
+    {
+      const float a = A*w[0];
+      const float b = B*(w[1]*w[2]);
+      my_rotation_matrix[1][2] = b - a;
+      my_rotation_matrix[2][1] = b + a;
+    }
+
+    /*
+      my_rotation_matrix[0] = myunit(my_rotation_matrix[0]);
+      my_rotation_matrix[1] -= my_rotation_matrix[0] * (my_rotation_matrix[0]*my_rotation_matrix[1]);
+      my_rotation_matrix[1] = myunit(my_rotation_matrix[1]);
+      my_rotation_matrix[2] -= my_rotation_matrix[0] * (my_rotation_matrix[0]*my_rotation_matrix[2]);
+      my_rotation_matrix[2] -= my_rotation_matrix[1] * (my_rotation_matrix[1]*my_rotation_matrix[2]);
+      my_rotation_matrix[2] = myunit(my_rotation_matrix[2]);
+    */
+
+    {
+      float vv = my_rotation_matrix[0][0] *  my_rotation_matrix[0][0] +my_rotation_matrix[0][1] *  my_rotation_matrix[0][1] +my_rotation_matrix[0][2] *  my_rotation_matrix[0][2] ;
+      float coef = (1/sqrt(vv));
+      my_rotation_matrix[0][0] = my_rotation_matrix[0][0] * coef;
+      my_rotation_matrix[0][1] = my_rotation_matrix[0][1] * coef;
+      my_rotation_matrix[0][2] = my_rotation_matrix[0][2] * coef;
+    }
+
+    {
+
+      float my_rotation_matrix01 =  my_rotation_matrix[0][0] *  my_rotation_matrix[1][0]
+	+my_rotation_matrix[0][1] *  my_rotation_matrix[1][1]
+	+my_rotation_matrix[0][2] *  my_rotation_matrix[1][2] ;
+
+      float my_rotation_matrix001[3];
+      my_rotation_matrix001[0] = my_rotation_matrix[0][0] * my_rotation_matrix01;
+      my_rotation_matrix001[1] = my_rotation_matrix[0][1] * my_rotation_matrix01;
+      my_rotation_matrix001[2] = my_rotation_matrix[0][2] * my_rotation_matrix01;
+
+      my_rotation_matrix[1][0] -= my_rotation_matrix001[0];
+      my_rotation_matrix[1][1] -= my_rotation_matrix001[1];
+      my_rotation_matrix[1][2] -= my_rotation_matrix001[2];
+
+    }
+
+
+
+    {
+      float vv = my_rotation_matrix[1][0] *  my_rotation_matrix[1][0] +my_rotation_matrix[1][1] *  my_rotation_matrix[1][1] +my_rotation_matrix[1][2] *  my_rotation_matrix[1][2] ;
+      float coef = (1/sqrt(vv));
+      my_rotation_matrix[1][0] = my_rotation_matrix[1][0] * coef;
+      my_rotation_matrix[1][1] = my_rotation_matrix[1][1] * coef;
+      my_rotation_matrix[1][2] = my_rotation_matrix[1][2] * coef;
+    }
+
+    {
+
+      float my_rotation_matrix02 =  my_rotation_matrix[0][0] *  my_rotation_matrix[2][0]
+	+my_rotation_matrix[0][1] *  my_rotation_matrix[2][1]
+	+my_rotation_matrix[0][2] *  my_rotation_matrix[2][2] ;
+
+      float my_rotation_matrix002[3];
+      my_rotation_matrix002[0] = my_rotation_matrix[0][0] * my_rotation_matrix02;
+      my_rotation_matrix002[1] = my_rotation_matrix[0][1] * my_rotation_matrix02;
+      my_rotation_matrix002[2] = my_rotation_matrix[0][2] * my_rotation_matrix02;
+
+      my_rotation_matrix[2][0] -= my_rotation_matrix002[0];
+      my_rotation_matrix[2][1] -= my_rotation_matrix002[1];
+      my_rotation_matrix[2][2] -= my_rotation_matrix002[2];
+
+    }
+
+    {
+
+      float my_rotation_matrix12 =  my_rotation_matrix[1][0] *  my_rotation_matrix[2][0]
+	+my_rotation_matrix[1][1] *  my_rotation_matrix[2][1]
+	+my_rotation_matrix[1][2] *  my_rotation_matrix[2][2] ;
+
+      float my_rotation_matrix112[3];
+      my_rotation_matrix112[0] = my_rotation_matrix[1][0] * my_rotation_matrix12;
+      my_rotation_matrix112[1] = my_rotation_matrix[1][1] * my_rotation_matrix12;
+      my_rotation_matrix112[2] = my_rotation_matrix[1][2] * my_rotation_matrix12;
+
+      my_rotation_matrix[2][0] -= my_rotation_matrix112[0];
+      my_rotation_matrix[2][1] -= my_rotation_matrix112[1];
+      my_rotation_matrix[2][2] -= my_rotation_matrix112[2];
+
+    }
+
+
+
+
+    {
+      float vv = my_rotation_matrix[2][0] *  my_rotation_matrix[2][0] +my_rotation_matrix[2][1] *  my_rotation_matrix[2][1] +my_rotation_matrix[2][2] *  my_rotation_matrix[2][2] ;
+      float coef = (1/sqrt(vv));
+      my_rotation_matrix[2][0] = my_rotation_matrix[2][0] * coef;
+      my_rotation_matrix[2][1] = my_rotation_matrix[2][1] * coef;
+      my_rotation_matrix[2][2] = my_rotation_matrix[2][2] * coef;
+    }
+
+
+
+
+
+    float I [4][4];
+    for (int i = 0 ; i < 4 ; i++) {
+      for (int j = 0 ; j < 4 ; j++) {
+	I[i][j] = 0;
+      }
+    }
+    for (int i = 0 ; i < 4 ; i++) {
+      I[i][i] = 1;
+    }
+
+
+    float TmpRes[4][4];
+    float Itranspose[4][4];
+    for(int i=0; i<4; ++i)
+      for(int j=0; j<4; ++j) {
+	Itranspose[j][i] = I[i][j] ;
+      }
+
+    for(int i=0; i<4; ++i) {
+      //TmpRes[i].slice<0,3>()=my_rotation_matrix *  Itranspose[i].slice<0,3>();
+
+      TmpRes[i][0] = my_rotation_matrix[0][0] *  Itranspose[i][0]
+	+ my_rotation_matrix[0][1] *  Itranspose[i][1]
+	+ my_rotation_matrix[0][2] *  Itranspose[i][2] ;
+      TmpRes[i][1] = my_rotation_matrix[1][0] *  Itranspose[i][0]
+	+ my_rotation_matrix[1][1] *  Itranspose[i][1]
+	+ my_rotation_matrix[1][2] *  Itranspose[i][2] ;
+      TmpRes[i][2] = my_rotation_matrix[2][0] *  Itranspose[i][0]
+	+ my_rotation_matrix[2][1] *  Itranspose[i][1]
+	+ my_rotation_matrix[2][2] *  Itranspose[i][2] ;
+
+      TmpRes[i][0] += my_translation[0] *  Itranspose[i][3];
+      TmpRes[i][1] += my_translation[1] *  Itranspose[i][3];
+      TmpRes[i][2] += my_translation[2] *  Itranspose[i][3];
+      TmpRes[i][3] =  Itranspose[i][3];
+    }
+    Matrix4 RR;
+
+    for(int j=0; j<4; ++j) {
+      RR.data[j].x =  TmpRes[0][j] ;
+      RR.data[j].y =  TmpRes[1][j] ;
+      RR.data[j].z =  TmpRes[2][j] ;
+      RR.data[j].w =  TmpRes[3][j] ;
+
+    }
+    Matrix4 m1 = *pose;
+    Matrix4 m2 = RR;
+    Matrix4 m3;
+    for (int i = 0; i < 4; i++ ) {
+      m3.data[ i ].x = 0;
+      m3.data[ i ].x += m1.data[ i ].x * m2.data[ 0 ].x;
+      m3.data[ i ].x += m1.data[ i ].y * m2.data[ 1 ].x;
+      m3.data[ i ].x += m1.data[ i ].z * m2.data[ 2 ].x;
+      m3.data[ i ].x += m1.data[ i ].w * m2.data[ 3 ].x;
+      
+      m3.data[ i ].y = 0;
+      m3.data[ i ].y += m1.data[ i ].x * m2.data[ 0 ].y;
+      m3.data[ i ].y += m1.data[ i ].y * m2.data[ 1 ].y;
+      m3.data[ i ].y += m1.data[ i ].z * m2.data[ 2 ].y;
+      m3.data[ i ].y += m1.data[ i ].w * m2.data[ 3 ].y;
+      
+      m3.data[ i ].z = 0;
+      m3.data[ i ].z += m1.data[ i ].x * m2.data[ 0 ].z;
+      m3.data[ i ].z += m1.data[ i ].y * m2.data[ 1 ].z;
+      m3.data[ i ].z += m1.data[ i ].z * m2.data[ 2 ].z;
+      m3.data[ i ].z += m1.data[ i ].w * m2.data[ 3 ].z;
+      
+      m3.data[ i ].w = 0;
+      m3.data[ i ].w += m1.data[ i ].x * m2.data[ 0 ].w;
+      m3.data[ i ].w += m1.data[ i ].y * m2.data[ 1 ].w;
+      m3.data[ i ].w += m1.data[ i ].z * m2.data[ 2 ].w;
+      m3.data[ i ].w += m1.data[ i ].w * m2.data[ 3 ].w;
+    }
+
+    pose->data[0] = m3.data[0];
+    pose->data[1] = m3.data[1];
+    pose->data[2] = m3.data[2];
+    pose->data[3] = m3.data[3];
+
+    // Return validity test result of the tracking
+    float xsqr = 0;
+    for(int i=0; i<6; ++i) {
+      xsqr += x[i] * x[i];
+    }
+    float lnorm =     sqrt(xsqr);
+
+    return;
+    /* skipped test : lnorm < icp_threshold */
+  }
+}
 
 inline Matrix4 getInverseCameraMatrix(const float4  k) {
 	Matrix4 invK;
@@ -2406,7 +3069,7 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
 		    float3 refNormal[restrict const static size0y][size0x],
 		    TrackData trackingResult[restrict const static size0y][size0x],
 		    float reductionoutput[restrict const static 8][32] ,
-		    const Matrix4 pose, const Matrix4 projectReference,
+		    Matrix4 * pose, const Matrix4 projectReference,
 		    const float dist_threshold, const float normal_threshold,		   
 		    Matrix4 invK0, Matrix4 invK1, Matrix4 invK2,
 		    int iterations0 ,
@@ -2430,32 +3093,27 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
 
   for (int i = 0; i < iterations2; ++i) {
-
-    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
-
+    inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
-    inline_update_pose_pencil(pose, reductionoutput[0]);
-    //inline_original_update_pose_pencil(pose, reductionoutput[0]);
+    update_pose_works(pose, reductionoutput);
   }
-
+  
   for (int i = 0; i < iterations1; ++i) {
 
-    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size1x, size1y,  trackingResult,  InputVertex1, InputNormal1, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size1x, size1y);
-    inline_update_pose_pencil(pose, reductionoutput[0]);
-    //inline_original_update_pose_pencil(pose, reductionoutput[0]);
+    update_pose_works(pose, reductionoutput);
   }
   
   for (int i = 0; i < iterations0; ++i) {
 
-    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  pose,  projectReference,  dist_threshold,  normal_threshold);
+    inline_track_pencil(size0x, size0y,  size0x, size0y,  trackingResult,  InputVertex0, InputNormal0, refVertex, refNormal,  *pose,  projectReference,  dist_threshold,  normal_threshold);
 
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size0x, size0y);
-    inline_update_pose_pencil(pose, reductionoutput[0]);
-    //inline_original_update_pose_pencil(pose, reductionoutput[0]);
+    update_pose_works(pose, reductionoutput);
   }
-
+  
 
   
   return 0;
