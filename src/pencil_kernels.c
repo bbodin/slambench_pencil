@@ -1746,7 +1746,7 @@ int tracking_pencil(unsigned int size0x, unsigned int size0y,
   inline_depth2vertex_pencil(size0x, size0y, InputVertex0, ScaledDepth0, invK0);
   inline_vertex2normal_pencil(size0x, size0y, InputNormal0, InputVertex0);
 
-  inline_depth2vertex_pencil(size1x, size1y, InputVertex1, ScaledDepth1, invK1);
+  inline_depth2vertex_pencil(size1x, 	size1y, InputVertex1, ScaledDepth1, invK1);
   inline_vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
 
   inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
@@ -1809,14 +1809,13 @@ int preprocessing_pencil(
 }
 
 
-						 
 int process_frame ( const uint inputSizex,
 		    const uint inputSizey,
 		    const unsigned short inputDepth[restrict const static inputSizey][inputSizex],
 		    unsigned int size0x, unsigned int size0y,
 		    unsigned int size1x, unsigned int size1y,
 		    unsigned int size2x, unsigned int size2y,
-		    float    floatDepth[restrict const static size0y][size0x],
+		    float floatDepth[restrict const static size0y][size0x],
 		    float radius,
 		    float* gaussian,
 		    float ScaledDepth0[restrict const static size0y][size0x],
@@ -1854,16 +1853,15 @@ int process_frame ( const uint inputSizex,
 		    int * tracked, int* integrated
 		    ) {
 
-  int ratio = inputSizex / size0x;
-  uint2 computationSize = {size0x,size0y};
-  
+	  int ratio = inputSizex / size0x;
+	  uint2 computationSize = {size0x,size0y};
+
 #pragma scop
-  
+
   inline_mm2meters_pencil(size0x, size0y, floatDepth, inputSizex, inputSizey, inputDepth, ratio);
-  
-  
+
+
   inline_bilateralFilter_pencil(size0x, size0y, ScaledDepth0 , floatDepth, computationSize, (radius * 2 + 1), gaussian, e_delta, radius);
-  
 
   
   
@@ -1877,7 +1875,6 @@ int process_frame ( const uint inputSizex,
 
   inline_depth2vertex_pencil(size1x, size1y, InputVertex1, ScaledDepth1, invK1);
   inline_vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
-
   inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
 #pragma endscop
