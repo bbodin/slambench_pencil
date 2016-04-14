@@ -16,7 +16,6 @@ struct float3 {
 	float x;
 	float y;
 	float z;
-	float dummy;
 };
 
 struct uchar3 {

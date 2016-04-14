@@ -1251,7 +1251,7 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
 	      }
 	    
 	      if (!do_565) {continue;}
-
+	      else // TODO : bug report
 	      {
 		// Check for convergence..
 		z = vDiagonal[k];
@@ -1640,8 +1640,14 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
       RR.data[j].w =  TmpRes[3][j] ;
 
     }
-    Matrix4 m1 = pose[0];
-    Matrix4 m2 = RR;
+    Matrix4 toto;
+    toto.data[0] = pose[0].data[0];
+    toto.data[1] = pose[0].data[1];
+    toto.data[2] = pose[0].data[2];
+    toto.data[3] = pose[0].data[3];
+
+    Matrix4 m1 = RR;
+    Matrix4 m2 = toto;
     Matrix4 m3;
     for (int i = 0; i < 4; i++ ) {
       m3.data[ i ].x = 0;
@@ -1668,11 +1674,11 @@ void update_pose_works(Matrix4 * pose , float output[restrict const static 8][32
       m3.data[ i ].w += m1.data[ i ].z * m2.data[ 2 ].w;
       m3.data[ i ].w += m1.data[ i ].w * m2.data[ 3 ].w;
     }
-
-    pose->data[0] = m3.data[0];
-    pose->data[1] = m3.data[1];
-    pose->data[2] = m3.data[2];
-    pose->data[3] = m3.data[3];
+    toto = m3;
+    pose->data[0] = toto.data[0];
+    pose->data[1] = toto.data[1];
+    pose->data[2] = toto.data[2];
+    pose->data[3] = toto.data[3];
 
     // Return validity test result of the tracking
     float xsqr = 0;
@@ -1877,14 +1883,20 @@ int process_frame ( const uint inputSizex,
   inline_vertex2normal_pencil(size1x, size1y, InputNormal1, InputVertex1);
   inline_depth2vertex_pencil(size2x, size2y, InputVertex2, ScaledDepth2, invK2);
   inline_vertex2normal_pencil(size2x, size2y, InputNormal2, InputVertex2);
-#pragma endscop
+
+     #pragma endscop
+  
   Matrix4 oldPose = pose[0];
+
+ 
   
   for (int i = 0; i < iterations2; ++i) {
     inline_track_pencil(size0x, size0y,  size2x, size2y,  trackingResult,  InputVertex2, InputNormal2, refVertex, refNormal,  pose[0],  projectReference,  dist_threshold,  normal_threshold);
     inline_reduce_pencil(reductionoutput, size0x, size0y,  trackingResult, size2x, size2y);
     update_pose_works(pose, reductionoutput);
   }
+
+
   
   for (int i = 0; i < iterations1; ++i) {
     
@@ -1903,6 +1915,7 @@ int process_frame ( const uint inputSizex,
   }
   
 
+  
  *tracked =  checkPoseKernel(pose, oldPose, reductionoutput,
 	                       computationSize, track_threshold);
 
@@ -1920,6 +1933,7 @@ int process_frame ( const uint inputSizex,
 		 integration_dim, view, nearPlane, farPlane, step, largestep);
   
 
+  
   return 0;
 }
 

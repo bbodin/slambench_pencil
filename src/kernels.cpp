@@ -327,7 +327,7 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 	TOCK("raycastKernel", inputSize.x * inputSize.y);
 }
 
-bool updatePoseKernelX(Matrix4 & pose, const float * output, float icp_threshold)
+bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold)
 {
 	bool res = false;
 	TICK();
@@ -401,14 +401,6 @@ return m3;
 
 
 bool updatePoseKernel_OCL( Matrix4 * pose,   float * output, float icp_threshold) {
-
-
-  for (int j = 1; j < 8; ++j) {
-    for (int x = 0; x < 32; ++x) {
-      output [x] += output [x + j * 32 ];
-    }
-  }
-
 
   // CONVERT A 8x32 Matrix to Matrix 6x6 and Vector 6
 
@@ -1056,41 +1048,47 @@ bool updatePoseKernel_OCL( Matrix4 * pose,   float * output, float icp_threshold
   }
 
 
+     Matrix4 toto;
+     toto.data[0] = pose->data[0];
+     toto.data[1] = pose->data[1];
+     toto.data[2] = pose->data[2];
+     toto.data[3] = pose->data[3];
 
-    Matrix4 m1 = *pose;
-    Matrix4 m2 = RR;
-    Matrix4 m3;
-    for (int i = 0; i < 4; i++ ) {
-      m3.data[ i ].x = 0;
-      m3.data[ i ].x += m1.data[ i ].x * m2.data[ 0 ].x;
-      m3.data[ i ].x += m1.data[ i ].y * m2.data[ 1 ].x;
-      m3.data[ i ].x += m1.data[ i ].z * m2.data[ 2 ].x;
-      m3.data[ i ].x += m1.data[ i ].w * m2.data[ 3 ].x;
-      
-      m3.data[ i ].y = 0;
-      m3.data[ i ].y += m1.data[ i ].x * m2.data[ 0 ].y;
-      m3.data[ i ].y += m1.data[ i ].y * m2.data[ 1 ].y;
-      m3.data[ i ].y += m1.data[ i ].z * m2.data[ 2 ].y;
-      m3.data[ i ].y += m1.data[ i ].w * m2.data[ 3 ].y;
-      
-      m3.data[ i ].z = 0;
-      m3.data[ i ].z += m1.data[ i ].x * m2.data[ 0 ].z;
-      m3.data[ i ].z += m1.data[ i ].y * m2.data[ 1 ].z;
-      m3.data[ i ].z += m1.data[ i ].z * m2.data[ 2 ].z;
-      m3.data[ i ].z += m1.data[ i ].w * m2.data[ 3 ].z;
-      
-      m3.data[ i ].w = 0;
-      m3.data[ i ].w += m1.data[ i ].x * m2.data[ 0 ].w;
-      m3.data[ i ].w += m1.data[ i ].y * m2.data[ 1 ].w;
-      m3.data[ i ].w += m1.data[ i ].z * m2.data[ 2 ].w;
-      m3.data[ i ].w += m1.data[ i ].w * m2.data[ 3 ].w;
-    }
+     Matrix4 m1 = RR;
+     Matrix4 m2 = toto ;
+     Matrix4 m3;
+     for (int i = 0; i < 4; i++ ) {
+       m3.data[ i ].x = 0;
+       m3.data[ i ].x += m1.data[ i ].x * m2.data[ 0 ].x;
+       m3.data[ i ].x += m1.data[ i ].y * m2.data[ 1 ].x;
+       m3.data[ i ].x += m1.data[ i ].z * m2.data[ 2 ].x;
+       m3.data[ i ].x += m1.data[ i ].w * m2.data[ 3 ].x;
+       
+       m3.data[ i ].y = 0;
+       m3.data[ i ].y += m1.data[ i ].x * m2.data[ 0 ].y;
+       m3.data[ i ].y += m1.data[ i ].y * m2.data[ 1 ].y;
+       m3.data[ i ].y += m1.data[ i ].z * m2.data[ 2 ].y;
+       m3.data[ i ].y += m1.data[ i ].w * m2.data[ 3 ].y;
+       
+       m3.data[ i ].z = 0;
+       m3.data[ i ].z += m1.data[ i ].x * m2.data[ 0 ].z;
+       m3.data[ i ].z += m1.data[ i ].y * m2.data[ 1 ].z;
+       m3.data[ i ].z += m1.data[ i ].z * m2.data[ 2 ].z;
+       m3.data[ i ].z += m1.data[ i ].w * m2.data[ 3 ].z;
+       
+       m3.data[ i ].w = 0;
+       m3.data[ i ].w += m1.data[ i ].x * m2.data[ 0 ].w;
+       m3.data[ i ].w += m1.data[ i ].y * m2.data[ 1 ].w;
+       m3.data[ i ].w += m1.data[ i ].z * m2.data[ 2 ].w;
+       m3.data[ i ].w += m1.data[ i ].w * m2.data[ 3 ].w;
+     }
+     toto =  m3;
+     
 
-    pose->data[0] = m3.data[0];
-    pose->data[1] = m3.data[1];
-    pose->data[2] = m3.data[2];
-    pose->data[3] = m3.data[3];
-
+     pose->data[0] = toto.data[0];
+     pose->data[1] = toto.data[1];
+     pose->data[2] = toto.data[2];
+     pose->data[3] = toto.data[3];
     // Return validity test result of the tracking
     float xsqr = 0;
     for(int i=0; i<6; ++i) {

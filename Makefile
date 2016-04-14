@@ -78,6 +78,9 @@ main.2.chandan.log  :   slambench-chandan/build/kfusion/kfusion-main-pencilCL sl
 main.2.pencilcc.log  :   slambench/build/kfusion/kfusion-main-pencilCL slambench/living_room_traj2_loop.raw
 	${DEBUG_ENV} LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PENCILCC_INSTALL_DIR}/lib  ${ROOT_DIR}/$< -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${ROOT_DIR}/slambench/living_room_traj2_loop.raw -o $@
 
+main.2.opencl.log  :   slambench/build/kfusion/kfusion-main-opencl slambench/living_room_traj2_loop.raw
+	${DEBUG_ENV} LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PENCILCC_INSTALL_DIR}/lib  ${ROOT_DIR}/$< -s 4.8 -p 0.34,0.5,0.24 -z 4-c 2 -r 1 -k 481.2,480,320,240 -i ${ROOT_DIR}/slambench/living_room_traj2_loop.raw -o $@
+
 ## SLAMBENCH REPOS ##
 
 
