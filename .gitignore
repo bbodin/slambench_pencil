@@ -1,0 +1,13 @@
+\#*
+.cproject
+.project
+.settings/
+chandan-build/
+chandan-install/
+chandan/
+pencilcc-build/
+pencilcc-install/
+pencilcc/
+slambench-chandan/
+slambench/
+
